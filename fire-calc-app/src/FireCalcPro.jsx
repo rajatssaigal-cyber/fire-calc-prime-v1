@@ -32,13 +32,13 @@ const DEFAULT_STATE = {
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
-  
+
   // --- SCENARIO MANAGEMENT STATE ---
   const [scenarios, setScenarios] = useState({ "default": DEFAULT_STATE });
   const [activeScenarioId, setActiveScenarioId] = useState("default");
 
-  // Helper to get current active state easily
-  const state = scenarios[activeScenarioId] || DEFAULT_STATE;
+  // ---> CHECK FOR THIS MISSING LINE: <---
+  const [showRealValue, setShowRealValue] = useState(false);
 
   // --- PERSISTENCE ---
   useEffect(() => {
