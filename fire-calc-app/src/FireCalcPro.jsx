@@ -11,10 +11,10 @@ import { MethodologyTab } from './components/docs/MethodologyTab';
 // --- FEATURE SECTIONS ---
 import { InputSection } from './components/features/InputSection';
 import { ResultsDashboard } from './components/features/ResultsDashboard';
-import { ScenarioTabs } from './components/features/ScenarioTabs'; // NEW IMPORT
+import { ScenarioTabs } from './components/features/ScenarioTabs';
 
 const DEFAULT_STATE = {
-  scenarioName: "Base Plan", // Added Name Field
+  scenarioName: "Base Plan",
   currentAge: 30, targetRetirementAge: 50, lifeExpectancy: 85,
   equityAssets: { mutualFunds: 500000, stocks: 200000 },
   stableAssets: { epf: 300000, ppf: 100000, nps: 0, gold: 50000, cash: 100000 }, 
@@ -32,15 +32,19 @@ const DEFAULT_STATE = {
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
-
-  // --- SCENARIO MANAGEMENT STATE ---
+  
+  // --- 1. STATE DEFINITIONS (MUST BE AT THE TOP) ---
   const [scenarios, setScenarios] = useState({ "default": DEFAULT_STATE });
   const [activeScenarioId, setActiveScenarioId] = useState("default");
+  const [showRealValue, setShowRealValue] = useState(false); // Fixes ReferenceError: showRealValue
+  
+  // --- 2. DERIVED STATE (MUST BE HERE) ---
+  // Fixes ReferenceError: state is not defined
+  const state = scenarios[activeScenarioId] || DEFAULT_STATE; 
+  
+  const [debouncedState, setDebouncedState] = useState(DEFAULT_STATE);
 
-  // ---> CHECK FOR THIS MISSING LINE: <---
-  const [showRealValue, setShowRealValue] = useState(false);
-
-  // --- PERSISTENCE ---
+  // --- 3. PERSISTENCE EFFECTS ---
   useEffect(() => {
     try {
         const saved = localStorage.getItem("fireCalcScenarios_v1"); 
@@ -68,9 +72,12 @@ export default function FireCalcPro() {
             localStorage.setItem("fireCalcScenarios_v1", JSON.stringify(dataToSave));
         } catch (e) {}
     }
-  }, [scenarios, activeScenarioId, isLoaded]);
+    // Debounce the heavy calculation
+    const timer = setTimeout(() => setDebouncedState(state), 200);
+    return () => clearTimeout(timer);
+  }, [scenarios, activeScenarioId, isLoaded, state]);
 
-  // --- SCENARIO ACTIONS ---
+  // --- 4. SCENARIO ACTIONS ---
   const handleAddScenario = () => {
     const newId = `plan_${Date.now()}`;
     const newName = `Scenario ${Object.keys(scenarios).length + 1}`;
@@ -85,7 +92,6 @@ export default function FireCalcPro() {
     const newScenarios = { ...scenarios };
     delete newScenarios[id];
     setScenarios(newScenarios);
-    // If we deleted the active one, switch to the first available
     if (id === activeScenarioId) {
         setActiveScenarioId(Object.keys(newScenarios)[0]);
     }
@@ -98,7 +104,7 @@ export default function FireCalcPro() {
     }));
   };
 
-  // --- STATE UPDATERS (Scoped to Active Scenario) ---
+  // --- 5. DATA UPDATERS (Scoped to Active Scenario) ---
   const updateState = useCallback((key, value) => {
       setScenarios(prev => ({
           ...prev,
@@ -162,16 +168,16 @@ export default function FireCalcPro() {
   const updateEvent = (id, field, val) => updateEvents(events => events.map(e => e.id === id ? { ...e, [field]: val } : e));
   const toggleEventType = (id) => updateEvents(events => events.map(e => e.id === id ? { ...e, type: e.type === 'recurring' ? 'one-time' : 'recurring' } : e));
 
-  const handleReset = () => { if(window.confirm("Reset current scenario to default?")) updateState(DEFAULT_STATE); }; // NOTE: This needs fixing to not break structure, but for now simple reset
+  const handleReset = () => { if(window.confirm("Reset current scenario to default?")) updateState(DEFAULT_STATE); }; 
   const handleClear = () => { if(window.confirm("Clear all data in this scenario?")) updateState({ ...DEFAULT_STATE, scenarioName: state.scenarioName, annualIncome: 0, currentAnnualExpenses: 0, equityAssets: {}, stableAssets: {} }); };
 
-  // --- ENGINE CALL ---
+  // --- 6. ENGINE CALL ---
   const results = useMemo(() => {
     if (!isLoaded || !state) return null;
-    return calculateProjection(state);
-  }, [state, isLoaded]);
+    return calculateProjection(debouncedState); // Uses debouncedState to prevent lag
+  }, [debouncedState, isLoaded, state]);
 
-  // Derived Metrics
+  // Derived Metrics (Calculated from `state` for instant UI updates)
   const totalEquity = state ? Object.values(state.equityAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalStable = state ? Object.values(state.stableAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalCustom = state ? state.customAssets.reduce((a, b) => a + (b.value || 0), 0) : 0;
