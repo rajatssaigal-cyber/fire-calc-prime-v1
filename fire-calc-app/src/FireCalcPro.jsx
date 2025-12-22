@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake } from "lucide-react";
+import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, GitCompare, XCircle } from "lucide-react";
 
 // --- IMPORTS ---
 import { calculateProjection } from './utils/fireMath';
@@ -30,8 +30,14 @@ const DEFAULT_STATE = {
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // CURRENT STATE
   const [state, setState] = useState(DEFAULT_STATE);
   const [debouncedState, setDebouncedState] = useState(DEFAULT_STATE);
+  
+  // COMPARISON STATE
+  const [baselineState, setBaselineState] = useState(null);
+
   const [showRealValue, setShowRealValue] = useState(false);
   
   // --- PERSISTENCE ---
@@ -79,6 +85,15 @@ export default function FireCalcPro() {
   const handleReset = () => { if(window.confirm("Reset to default?")) setState(DEFAULT_STATE); };
   const handleClear = () => { if(window.confirm("Clear all data?")) setState(DEFAULT_STATE); };
 
+  // --- BASELINE LOGIC ---
+  const toggleBaseline = () => {
+    if (baselineState) {
+        setBaselineState(null); // Clear baseline
+    } else {
+        setBaselineState(state); // Lock current as baseline
+    }
+  };
+
   // --- METRICS ---
   const totalEquity = Object.values(state.equityAssets).reduce((a, b) => a + (b || 0), 0);
   const totalStable = Object.values(state.stableAssets).reduce((a, b) => a + (b || 0), 0);
@@ -90,11 +105,18 @@ export default function FireCalcPro() {
   const netCashflow = monthlyIncome - monthlyExpenses - totalSIP;
   const emergencyCoverageMonths = monthlyExpenses > 0 ? (state.emergencyFund / monthlyExpenses).toFixed(1) : "N/A";
 
-  // --- ENGINE CALL ---
+  // --- ENGINE CALLS ---
+  // 1. Current Results
   const results = useMemo(() => {
     if (!isLoaded) return null;
     return calculateProjection(debouncedState);
   }, [debouncedState, isLoaded]);
+
+  // 2. Baseline Results (Only calculate if baseline exists)
+  const baselineResults = useMemo(() => {
+    if (!baselineState) return null;
+    return calculateProjection(baselineState);
+  }, [baselineState]);
 
   const hasData = useMemo(() => {
     return (state.annualIncome > 0 || state.currentAnnualExpenses > 0 || totalNetWorth > 0 || (state.monthlySIP.equity + state.monthlySIP.stable) > 0);
@@ -138,6 +160,17 @@ export default function FireCalcPro() {
           </div>
 
           <div className="flex gap-2">
+            <button 
+                onClick={toggleBaseline} 
+                className={`p-2 rounded-lg border transition-all duration-300 flex items-center gap-2 ${baselineState ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50' : 'text-slate-400 hover:text-white bg-white/5 border-white/5'}`}
+                title={baselineState ? "Clear Baseline" : "Lock Baseline for Comparison"}
+            >
+                {baselineState ? <XCircle size={18} /> : <GitCompare size={18}/>}
+                <span className="text-xs font-bold hidden md:inline">{baselineState ? "Clear Comparison" : "Compare"}</span>
+            </button>
+            
+            <div className="w-px bg-white/10 mx-1"></div>
+
             <button onClick={handleDownload} className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><Download size={18}/></button>
             <button onClick={handleReset} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><RotateCcw size={18}/></button>
             <button onClick={handleClear} className="p-2 text-slate-400 hover:text-rose-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><Eraser size={18}/></button>
@@ -178,6 +211,7 @@ export default function FireCalcPro() {
         <div className="lg:col-span-8">
             <ResultsDashboard 
                 results={results}
+                baselineResults={baselineResults} // NEW PROP
                 state={state}
                 hasData={hasData}
                 netCashflow={netCashflow}
