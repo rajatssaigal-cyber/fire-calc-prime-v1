@@ -1,19 +1,39 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
-  Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart, Bar 
+  Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart, Bar, Legend
 } from "recharts";
 import { 
   CheckCircle2, AlertTriangle, ArrowRight, Eye, EyeOff, Skull, Banknote, Clock, Scissors, Calculator 
 } from "lucide-react";
 import { Card } from '../ui/Card';
 import { formatCompact, formatINR } from '../../utils/formatters';
-import { LifeEventsList } from './LifeEventsList'; // We will create this next
+import { LifeEventsList } from './LifeEventsList.jsx';
 
 export const ResultsDashboard = ({ 
-  results, state, hasData, netCashflow, monthlyIncome, monthlyExpenses, totalSIP, 
+  results, baselineResults, state, hasData, netCashflow, monthlyIncome, monthlyExpenses, totalSIP, 
   showRealValue, setShowRealValue, addEvent, updateEvent, toggleEventType, removeEvent 
 }) => {
   const isSurplus = netCashflow >= 0;
+
+  // --- MERGE DATA FOR CHART ---
+  // We need to merge baselineResults into the main results for the chart to plot both
+  const chartData = useMemo(() => {
+    if (!results) return [];
+    if (!baselineResults) return results.projection;
+
+    // Create a map of baseline data by Age for fast lookup
+    const baselineMap = new Map();
+    baselineResults.projection.forEach(p => baselineMap.set(p.age, p));
+
+    return results.projection.map(curr => {
+        const base = baselineMap.get(curr.age);
+        return {
+            ...curr,
+            baselineBalance: base ? base.balance : null,
+            realBaselineBalance: base ? base.realBalance : null,
+        };
+    });
+  }, [results, baselineResults]);
   
   if (!hasData) return (
      <div className="flex flex-col items-center justify-center h-[500px] p-8 bg-zinc-900/30 rounded-3xl border border-white/5 text-center backdrop-blur-sm animate-in fade-in duration-700">
@@ -86,12 +106,26 @@ export const ResultsDashboard = ({
                 {results && results.gap > 0 ? (
                     <>
                         <h2 className="text-4xl font-black text-rose-500 mb-1 tracking-tight">-{formatCompact(showRealValue ? results.realGap : results.gap)}</h2>
-                        <p className="text-sm font-medium text-rose-400/60">Projected Shortfall</p>
+                        <div className="flex items-center gap-2">
+                             <p className="text-sm font-medium text-rose-400/60">Projected Shortfall</p>
+                             {baselineResults && (
+                                <span className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-slate-400">
+                                   (vs {formatCompact(showRealValue ? baselineResults.realGap : baselineResults.gap)})
+                                </span>
+                             )}
+                        </div>
                     </>
                 ) : (
                     <>
                         <h2 className="text-4xl font-black text-emerald-500 mb-1 tracking-tight">+{formatCompact(Math.abs(showRealValue ? results.realGap : results.gap))}</h2>
-                        <p className="text-sm font-medium text-green-400/60">Projected Surplus</p>
+                         <div className="flex items-center gap-2">
+                             <p className="text-sm font-medium text-green-400/60">Projected Surplus</p>
+                             {baselineResults && (
+                                <span className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-slate-400">
+                                   (vs {formatCompact(Math.abs(showRealValue ? baselineResults.realGap : baselineResults.gap))})
+                                </span>
+                             )}
+                         </div>
                     </>
                 )}
                 {results.bankruptcyAge && (
@@ -115,10 +149,13 @@ export const ResultsDashboard = ({
              ) : (
                  <h2 className="text-3xl font-black text-slate-600">Never</h2>
              )}
-             {results.bankruptcyAge ? (
-                 <p className="text-xs text-red-500 mt-2 font-bold">Money lasts until: {results.bankruptcyAge} yrs</p>
-             ) : (
-                  <p className="text-xs text-emerald-500 mt-2 font-bold">Wealth sustains forever! 🚀</p>
+             {baselineResults && (
+                <p className="text-xs text-slate-400 mt-2">
+                    Baseline: {baselineResults.fireAge ? `${baselineResults.fireAge} yrs` : 'Never'}
+                    <span className={`ml-2 font-bold ${parseFloat(results.fireAge) < parseFloat(baselineResults.fireAge) ? 'text-green-400' : 'text-red-400'}`}>
+                        ({parseFloat(results.fireAge) < parseFloat(baselineResults.fireAge) ? '-' : '+'}{(Math.abs(results.fireAge - baselineResults.fireAge)).toFixed(1)})
+                    </span>
+                </p>
              )}
          </Card>
        </div>
@@ -157,13 +194,14 @@ export const ResultsDashboard = ({
               <div className="flex gap-4 text-[10px]">
                   <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Equity</span>
                   <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500"></div> Stable</span>
-                  {state.customAssets.length > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div> Alternatives</span>}
                   <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-red-400"></div> Withdrawal</span>
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-cyan-400"></div> Safety Net</span>
+                  {baselineResults && (
+                      <span className="flex items-center gap-1.5"><div className="w-6 h-0.5 bg-slate-500 border-t border-dashed border-slate-400"></div> Baseline</span>
+                  )}
               </div>
           </div>
           <ResponsiveContainer width="100%" height="100%">
-             <ComposedChart data={results ? results.projection : []} margin={{top:10, right:10, left:0, bottom:0}}>
+             <ComposedChart data={chartData} margin={{top:10, right:10, left:0, bottom:0}}>
                 <defs>
                     <linearGradient id="gEq" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
                     <linearGradient id="gStable" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/><stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/></linearGradient>
@@ -183,14 +221,28 @@ export const ResultsDashboard = ({
                 <Tooltip 
                     contentStyle={{backgroundColor:'#020617', borderColor:'#334155', borderRadius:'12px', boxShadow:'0 10px 30px -10px rgba(0,0,0,0.8)'}}
                     itemStyle={{fontSize:'12px', fontWeight:700, fontFamily: 'monospace'}}
-                    formatter={(val, name) => [formatINR(val), name === 'target' ? 'Required' : name === 'balance' ? 'Total' : name]}
+                    formatter={(val, name) => [formatINR(val), name === 'target' ? 'Required' : name === 'balance' ? 'Total' : name === 'baselineBalance' ? 'Baseline' : name]}
                     labelFormatter={(label) => `Age ${label}`}
                 />
+                
+                {/* GHOST LINE (BASELINE) */}
+                {baselineResults && (
+                     <Line 
+                        type="monotone" 
+                        dataKey={showRealValue ? "realBaselineBalance" : "baselineBalance"} 
+                        stroke="#94a3b8" 
+                        strokeWidth={2} 
+                        strokeDasharray="5 5"
+                        dot={false} 
+                        name="Baseline"
+                        activeDot={false}
+                    />
+                )}
+
                 <Area type="monotone" dataKey="custom" stackId="1" stroke="#fbbf24" fill="url(#gCustom)" name="Alternatives" strokeWidth={2} />
                 <Area type="monotone" dataKey="stable" stackId="1" stroke="#f43f5e" fill="url(#gStable)" name="Stable Assets" strokeWidth={2} />
                 <Area type="monotone" dataKey="equity" stackId="1" stroke="#10b981" fill="url(#gEq)" name="Equity" strokeWidth={2} />
                 
-                {/* Emergency Fund Area */}
                 <Area type="monotone" dataKey={showRealValue ? "realEmergency" : "emergency"} stackId="0" stroke="#06b6d4" fill="url(#gEmergency)" name="Safety Net" strokeWidth={2} strokeDasharray="5 5" />
                 
                 <Bar dataKey="event" fill="#a855f7" name="Event" barSize={4} radius={[4, 4, 0, 0]} />
