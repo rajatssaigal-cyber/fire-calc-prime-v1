@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake } from "lucide-react";
+import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, BarChart3 } from "lucide-react";
 
 // --- IMPORTS ---
 import { calculateProjection } from './utils/fireMath';
@@ -12,6 +12,7 @@ import { MethodologyTab } from './components/docs/MethodologyTab';
 import { InputSection } from './components/features/InputSection';
 import { ResultsDashboard } from './components/features/ResultsDashboard';
 import { ScenarioTabs } from './components/features/ScenarioTabs';
+import { CompareTab } from './components/features/CompareTab'; // NEW IMPORT
 
 const DEFAULT_STATE = {
   scenarioName: "Base Plan",
@@ -33,15 +34,13 @@ export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // --- 1. STATE DEFINITIONS (MUST BE AT THE TOP) ---
+  // --- 1. STATE DEFINITIONS ---
   const [scenarios, setScenarios] = useState({ "default": DEFAULT_STATE });
   const [activeScenarioId, setActiveScenarioId] = useState("default");
-  const [showRealValue, setShowRealValue] = useState(false); // Fixes ReferenceError: showRealValue
+  const [showRealValue, setShowRealValue] = useState(false);
   
-  // --- 2. DERIVED STATE (MUST BE HERE) ---
-  // Fixes ReferenceError: state is not defined
+  // --- 2. DERIVED STATE ---
   const state = scenarios[activeScenarioId] || DEFAULT_STATE; 
-  
   const [debouncedState, setDebouncedState] = useState(DEFAULT_STATE);
 
   // --- 3. PERSISTENCE EFFECTS ---
@@ -72,7 +71,6 @@ export default function FireCalcPro() {
             localStorage.setItem("fireCalcScenarios_v1", JSON.stringify(dataToSave));
         } catch (e) {}
     }
-    // Debounce the heavy calculation
     const timer = setTimeout(() => setDebouncedState(state), 200);
     return () => clearTimeout(timer);
   }, [scenarios, activeScenarioId, isLoaded, state]);
@@ -104,7 +102,7 @@ export default function FireCalcPro() {
     }));
   };
 
-  // --- 5. DATA UPDATERS (Scoped to Active Scenario) ---
+  // --- 5. DATA UPDATERS ---
   const updateState = useCallback((key, value) => {
       setScenarios(prev => ({
           ...prev,
@@ -155,7 +153,6 @@ export default function FireCalcPro() {
       });
   };
 
-  // Life Events Handlers (Scoped)
   const updateEvents = (fn) => {
       setScenarios(prev => {
           const curr = prev[activeScenarioId];
@@ -174,10 +171,10 @@ export default function FireCalcPro() {
   // --- 6. ENGINE CALL ---
   const results = useMemo(() => {
     if (!isLoaded || !state) return null;
-    return calculateProjection(debouncedState); // Uses debouncedState to prevent lag
+    return calculateProjection(debouncedState);
   }, [debouncedState, isLoaded, state]);
 
-  // Derived Metrics (Calculated from `state` for instant UI updates)
+  // Derived Metrics
   const totalEquity = state ? Object.values(state.equityAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalStable = state ? Object.values(state.stableAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalCustom = state ? state.customAssets.reduce((a, b) => a + (b.value || 0), 0) : 0;
@@ -225,6 +222,10 @@ export default function FireCalcPro() {
              <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-slate-800 text-white shadow-lg shadow-black/50' : 'text-slate-400 hover:text-slate-200'}`}>
                 <Calculator size={14} /> Calculator
              </button>
+             {/* NEW COMPARE BUTTON */}
+             <button onClick={() => setActiveTab('compare')} className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'compare' ? 'bg-slate-800 text-white shadow-lg shadow-black/50' : 'text-slate-400 hover:text-slate-200'}`}>
+                <BarChart3 size={14} /> Compare
+             </button>
              <button onClick={() => setActiveTab('docs')} className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'docs' ? 'bg-slate-800 text-white shadow-lg shadow-black/50' : 'text-slate-400 hover:text-slate-200'}`}>
                 <BookOpen size={14} /> Blueprint
              </button>
@@ -242,14 +243,22 @@ export default function FireCalcPro() {
       <div className="md:hidden flex justify-center border-b border-white/5 p-2 relative z-10">
           <div className="flex gap-1 bg-white/5 rounded-lg p-1 w-full max-w-sm">
              <button onClick={() => setActiveTab('dashboard')} className={`flex-1 flex justify-center items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium ${activeTab === 'dashboard' ? 'bg-slate-800 text-white' : 'text-slate-400'}`}><Calculator size={12} /> Calc</button>
+             <button onClick={() => setActiveTab('compare')} className={`flex-1 flex justify-center items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium ${activeTab === 'compare' ? 'bg-slate-800 text-white' : 'text-slate-400'}`}><BarChart3 size={12} /> Compare</button>
              <button onClick={() => setActiveTab('docs')} className={`flex-1 flex justify-center items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium ${activeTab === 'docs' ? 'bg-slate-800 text-white' : 'text-slate-400'}`}><BookOpen size={12} /> Docs</button>
           </div>
       </div>
 
-      {activeTab === 'docs' ? <MethodologyTab /> : (
+      {/* MAIN CONTENT SWITCHER */}
+      {activeTab === 'docs' ? (
+          <MethodologyTab />
+      ) : activeTab === 'compare' ? (
+          <main className="max-w-7xl mx-auto p-4 md:p-8 pb-40 lg:pb-8 relative z-10">
+              <CompareTab scenarios={scenarios} />
+          </main>
+      ) : (
       <main className="max-w-7xl mx-auto p-4 md:p-8 pb-40 lg:pb-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500 relative z-10">
         
-        {/* NEW: SCENARIO TABS */}
+        {/* SCENARIO TABS */}
         <div className="col-span-1 lg:col-span-12">
             <ScenarioTabs 
                 scenarios={scenarios} 
@@ -300,7 +309,8 @@ export default function FireCalcPro() {
       </main>
       )}
 
-      {/* SMART STICKY FOOTER */}
+      {/* SMART STICKY FOOTER (Visible on Dashboard Only) */}
+      {activeTab === 'dashboard' && (
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 z-50 pb-safe">
           <div className="flex flex-col gap-3">
              <div className="flex justify-between items-end">
@@ -315,7 +325,6 @@ export default function FireCalcPro() {
                     <div className="text-lg font-bold text-indigo-400">{results?.fireAge ? `${results.fireAge} yrs` : 'Never'}</div>
                  </div>
              </div>
-             {/* Mini Progress Bar */}
              {results && (
                  <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
                      <div 
@@ -326,6 +335,7 @@ export default function FireCalcPro() {
              )}
           </div>
       </div>
+      )}
     </div>
   );
 }
