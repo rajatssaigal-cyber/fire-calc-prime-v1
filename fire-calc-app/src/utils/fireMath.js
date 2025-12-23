@@ -74,41 +74,43 @@ export const calculateProjection = (state) => {
     let initialSurplus = 0; //
 
     // 3. The Projection Loop
+    // THE LOOP
     for (let m = 1; m <= safeMonthsToProject; m++) {
         const isRetired = m > monthsToRetire;
         const currentAge = s.currentAge + (m/12);
         const isYearStart = (m-1) % 12 === 0;
 
-        // --- DYNAMIC RETURN RATE (THE CRASH LOGIC) ---
+        // --- 1. DYNAMIC EQUITY RETURN (Crash Logic) ---
         let currentEquityReturn = rEquityBase;
-        
-        // If Stress Test is ON, we are Retired, and it's within the first 24 months of retirement
         if (doStressTest && isRetired && m <= monthsToRetire + 24) {
-             // CRASH: -20% annual return (approx -1.8% monthly)
              currentEquityReturn = -0.20; 
         }
-        
         const mrEquity = Math.pow(1 + currentEquityReturn, 1/12) - 1;
 
-        // Salary Growth
+        // --- 2. INCOME & EXPENSE (FIX: Delay inflation by 1 month so M1 = Base) ---
+        // monthIndex 0 means "Today" (No inflation/growth applied yet)
+        const monthIndex = m - 1; 
+
+        // Calculate Income for this specific month
+        let currentMonthIncomeVal = 0;
         if (!isRetired) {
-            currentMonthlyIncome *= (1 + monthlyIncomeGrowth);
+            currentMonthIncomeVal = (s.annualIncome / 12) * Math.pow(1 + monthlyIncomeGrowth, monthIndex);
         }
 
-        // Apply SIP Step-Up
-        if (!isRetired && isYearStart && m > 1) {
-            const stepMult = 1 + s.sipStepUp/100;
-            curSipEquity *= stepMult;
-            curSipStable *= stepMult;
-        }
-
-        const annualExpMultiplier = Math.pow(1 + effectiveInflation/100, m/12);
-        const annualExp = s.retirementAnnualExpenses * annualExpMultiplier;
+        // Calculate Inflation Multiplier for this specific month
+        const annualExpMultiplier = Math.pow(1 + effectiveInflation/100, monthIndex/12);
+        
+        // Calculate Expense for this specific month
+        const annualExp = s.retirementAnnualExpenses * annualExpMultiplier; // Nominal annual spend
         const monthlyExp = annualExp / 12;
         
+        // Use Current Expenses for Surplus check (not Retirement Expenses)
+        const currentMonthExpenseVal = (s.currentAnnualExpenses / 12) * annualExpMultiplier;
+
+        // Calculate Target Corpus (using Retirement Expense)
         const targetCorpus = (annualExp / (Math.max(0.1, s.safeWithdrawalRate)/100));
 
-        // Recurring Events
+        // --- 3. RECURRING OUTFLOWS ---
         let monthlyRecurringOutflow = 0;
         recurringEvents.forEach(e => {
             const endAge = e.endAge > e.age ? e.endAge : s.lifeExpectancy; 
@@ -117,26 +119,31 @@ export const calculateProjection = (state) => {
             }
         });
 
-       // 1. Calculate Max Investable Surplus
-        // FIX: Calculate the ACTUAL Current Expense for this month (with inflation)
-        const actualCurrentMonthlyExp = (s.currentAnnualExpenses / 12) * Math.pow(1 + effectiveInflation/100, m/12);
-        
-        // Use THAT for the surplus check
-        const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthlyIncome - actualCurrentMonthlyExp - monthlyRecurringOutflow);
+        // --- 4. SURPLUS CHECK & SIP CAPPING ---
+        // Calculate REAL surplus available for investment
+        const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthIncomeVal - currentMonthExpenseVal - monthlyRecurringOutflow);
+
+        // Capture for UI (Month 1 only)
         if (m === 1) initialSurplus = currentSurplus;
 
-        // 2. Cap the SIPs
+        // Apply SIP Step-Up Logic to determine TARGET SIP
+        if (!isRetired && isYearStart && m > 1) {
+            const stepMult = 1 + s.sipStepUp/100;
+            curSipEquity *= stepMult;
+            curSipStable *= stepMult;
+        }
+
+        // Check if Target SIP exceeds Real Surplus
         let effectiveSipEquity = curSipEquity;
         let effectiveSipStable = curSipStable;
         
         if (!isRetired) {
             const totalTargetSIP = curSipEquity + curSipStable;
             
-            if (totalTargetSIP > currentSurplus) {
+            // +50 buffer for rounding errors
+            if (totalTargetSIP > currentSurplus + 50) {
+                sipWasCapped = true;
                 
-                sipWasCapped = true; // <--- 2. UPDATE IT HERE
-                
-                // Logic to reduce SIPs...
                 if (totalTargetSIP > 0) {
                      const ratio = currentSurplus / totalTargetSIP;
                      effectiveSipEquity *= ratio;
@@ -148,7 +155,8 @@ export const calculateProjection = (state) => {
             }
         }
 
-        // Emergency Fund Top-Up
+        // --- 5. EMERGENCY FUND TOP-UP ---
+    
         const currentLivingExpense = isRetired ? monthlyExp : (s.currentAnnualExpenses/12 * Math.pow(1 + effectiveInflation/100, m/12));
         const requiredEmergencyFund = (parseFloat(s.emergencyFund / (s.currentAnnualExpenses/12 || 1)) || 0) * currentLivingExpense;
         
