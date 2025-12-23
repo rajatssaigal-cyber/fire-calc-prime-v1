@@ -251,4 +251,32 @@ export const calculateProjection = (state) => {
     const gap = targetAtRetirement - corpusAtRetirement;
     const realGap = (data.find(d => d.age === effectiveRetireAge)?.realTarget || 0) - (data.find(d => d.age === effectiveRetireAge)?.realBalance || 0);
 
-    let solutionSaveMore = 0, solutionWorkLonger = 0,
+    let solutionSaveMore = 0, solutionWorkLonger = 0, solutionSpendLess = 0;
+
+    if (gap > 0) {
+        const totalSip = s.monthlySIP.equity + s.monthlySIP.stable;
+        const eqWeight = totalSip > 0 ? s.monthlySIP.equity / totalSip : 0.6; 
+        const blendR = (rEquityBase * eqWeight) + (rStable * (1-eqWeight));
+        const ratePerMonth = blendR / 12;
+        
+        if (monthsToRetire > 0) {
+             solutionSaveMore = solveForRequiredSIP(gap, monthsToRetire, ratePerMonth, s.sipStepUp);
+        }
+        
+        const solveYear = data.find(d => d.balance >= d.target && d.age > effectiveRetireAge);
+        solutionWorkLonger = solveYear ? solveYear.age - effectiveRetireAge : "> 30";
+        const allowedAnnual = corpusAtRetirement * (s.safeWithdrawalRate/100);
+        solutionSpendLess = Math.max(0, s.retirementAnnualExpenses - allowedAnnual);
+    }
+
+    return {
+        projection: data, gap, realGap, fireAge: reached ? (s.currentAge + fireMonthIndex/12).toFixed(1) : null,
+        solutions: { saveMore: Math.round(solutionSaveMore), workLonger: solutionWorkLonger, spendLess: Math.round(solutionSpendLess) },
+        salaryVsStepUpWarning: s.sipStepUp > s.salaryGrowth,
+        emergencyCoverageFuture,
+        targetAtRetirement, 
+        corpusAtRetirement,
+        bankruptcyAge: bankruptcyAge ? bankruptcyAge.toFixed(1) : null,
+        initialSurplus // Passed for UI warning only
+    };
+};
