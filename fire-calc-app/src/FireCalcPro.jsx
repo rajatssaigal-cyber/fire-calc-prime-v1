@@ -7,6 +7,8 @@ import { sanitizeCSV } from './utils/formatters';
 import { SEOManager } from './components/SEOManager';
 import { Snowfall } from './components/ui/Snowfall';
 import { MethodologyTab } from './components/docs/MethodologyTab';
+import { generatePDFReport } from './utils/pdfGenerator';
+import { FileText } from "lucide-react";
 
 // --- FEATURE SECTIONS ---
 import { InputSection } from './components/features/InputSection';
@@ -232,7 +234,24 @@ export default function FireCalcPro() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={handleDownload} className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><Download size={18}/></button>
+            {/* CSV Download */}
+            <button 
+                onClick={handleDownload} 
+                className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
+                title="Export Data (CSV)"
+            >
+                <Download size={18}/>
+            </button>
+
+            {/* PDF Report (NEW) */}
+            <button 
+                onClick={() => generatePDFReport(state, results)} 
+                className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
+                title="Download Report (PDF)"
+            >
+                <FileText size={18}/>
+            </button>
+
             <button onClick={handleReset} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><RotateCcw size={18}/></button>
             <button onClick={handleClear} className="p-2 text-slate-400 hover:text-rose-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><Eraser size={18}/></button>
           </div>
