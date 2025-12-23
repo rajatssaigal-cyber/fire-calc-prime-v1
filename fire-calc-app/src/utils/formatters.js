@@ -3,15 +3,12 @@ export const formatINR = (val, noSymbol = false) => {
   const sign = val < 0 ? "-" : "";
   const absVal = Math.abs(val);
   
-  // Format standard INR (e.g., 1,20,000)
   const formatted = new Intl.NumberFormat("en-IN", { 
       style: noSymbol ? "decimal" : "currency", 
       currency: "INR", 
       maximumFractionDigits: 0 
   }).format(absVal);
 
-  // If noSymbol is true, Intl returns just the number. If false, it adds ₹.
-  // We handle the sign manually to ensure it's correct for custom formatting if needed.
   return sign + formatted;
 };
 
@@ -22,11 +19,11 @@ export const formatCompact = (val, noSymbol = false) => {
    const symbol = noSymbol ? "" : "₹";
 
    let formattedNumber;
-   if (absVal >= 10000000) { // 1 Crore
+   if (absVal >= 10000000) { 
        formattedNumber = `${(absVal / 10000000).toFixed(2)}Cr`; 
-   } else if (absVal >= 100000) { // 1 Lakh
+   } else if (absVal >= 100000) { 
        formattedNumber = `${(absVal / 100000).toFixed(1)}L`;
-   } else if (absVal >= 1000) { // 1 Thousand
+   } else if (absVal >= 1000) { 
        formattedNumber = `${(absVal / 1000).toFixed(0)}k`;
    } else {
        formattedNumber = absVal.toFixed(0);
