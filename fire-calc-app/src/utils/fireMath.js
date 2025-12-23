@@ -184,7 +184,7 @@ export const calculateProjection = (state) => {
                      curStable -= monthlyRecurringOutflow * (1 - eqRatio);
                 }
             }
-        } else {
+        else {
             // DECUMULATION
             const totalMonthlyOutflow = monthlyExp + monthlyRecurringOutflow;
             const liquidTotal = curEquity + curStable;
