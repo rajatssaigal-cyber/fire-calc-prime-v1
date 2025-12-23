@@ -8,6 +8,7 @@ import {
 import { Card } from '../ui/Card';
 import { formatCompact, formatINR } from '../../utils/formatters';
 import { LifeEventsList } from './LifeEventsList'; // We will create this next
+import { DetailedTable } from './DetailedTable.jsx';
 
 export const ResultsDashboard = ({ 
   results, state, hasData, netCashflow, monthlyIncome, monthlyExpenses, totalSIP, 
@@ -225,6 +226,8 @@ export const ResultsDashboard = ({
        </Card>
 
        <LifeEventsList state={state} addEvent={addEvent} updateEvent={updateEvent} toggleEventType={toggleEventType} removeEvent={removeEvent} />
+      {/* NEW TABLE */}
+<DetailedTable projection={results?.projection} targetRetirementAge={state.targetRetirementAge} />
     </div>
   );
 };
