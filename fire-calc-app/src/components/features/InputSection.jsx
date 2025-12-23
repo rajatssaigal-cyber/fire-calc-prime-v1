@@ -1,14 +1,15 @@
+// src/components/features/InputSection.jsx
 import React from 'react';
 import { Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, Info, AlertTriangle } from "lucide-react";
 import { SmartInput } from '../ui/SmartInput';
 import { SliderInput } from '../ui/SliderInput';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
-import { formatCompact } from '../../utils/formatters';
+import { formatCompact, formatINR } from '../../utils/formatters';
 
 export const InputSection = ({ state, updateState, updateNested, addCustomAsset, updateCustomAsset, removeCustomAsset, results, totalNetWorth, totalEquity, totalStable, totalCustom, emergencyCoverageMonths }) => {
   return (
     <div className="space-y-4">
-           {/* IMPROVED PRO TIP BANNER (Contrast Fix) */}
+           {/* PRO TIP BANNER */}
            <div className="bg-slate-900 border border-indigo-500/30 p-4 rounded-xl flex items-start gap-4 shadow-lg shadow-indigo-500/5">
               <div className="bg-indigo-500/20 p-2 rounded-lg">
                   <Info className="text-indigo-400 w-5 h-5" />
@@ -21,6 +22,7 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
               </div>
            </div>
            
+           {/* CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
               <div className="space-y-4">
                  <div className="p-3 bg-slate-900/50 rounded-xl border border-white/5">
@@ -31,66 +33,73 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
                     <SliderInput label="Salary Growth (Yearly)" value={state.salaryGrowth} onChange={v=>updateState('salaryGrowth',v)} max={20} step={1} icon={TrendingUp} />
                  </div>
                  
-                 <div className="grid grid-cols-2 gap-4 mb-4">
-                    {/* EQUITY SIP INPUT */}
-                    <div className="relative">
-                        <SmartInput 
-                            label="Equity SIP" 
-                            value={state.monthlySIP.equity} 
-                            onChange={v=>updateNested('monthlySIP','equity',v)} 
-                            icon={Coins} 
-                            iconColor="text-emerald-400" 
-                            prefix="₹" 
-                        />
-                        {/* Show if Capped */}
-                        {results?.sipWasCapped && state.monthlySIP.equity > 0 && (
-                            <div className="absolute top-0 right-0 -mt-2">
-                                <span className="text-[9px] font-bold bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/30 flex items-center gap-1">
-                                    <AlertTriangle size={8} /> 
-                                    Capped
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* STABLE SIP INPUT */}
-                    <div className="relative">
-                        <SmartInput 
-                            label="Stable SIP (NPS, PPF)" 
-                            value={state.monthlySIP.stable} 
-                            onChange={v=>updateNested('monthlySIP','stable',v)} 
-                            icon={PiggyBank} 
-                            iconColor="text-rose-400" 
-                            prefix="₹" 
-                        />
-                        {/* Show if Capped */}
-                        {results?.sipWasCapped && state.monthlySIP.stable > 0 && (
-                            <div className="absolute top-0 right-0 -mt-2">
-                                <span className="text-[9px] font-bold bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/30 flex items-center gap-1">
-                                    <AlertTriangle size={8} /> 
-                                    Capped
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                 </div>
-
-                 {/* GLOBAL WARNING BOX (Explains WHY it is capped) */}
-                 {results?.sipWasCapped && (
-                    <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
-                        <AlertTriangle size={16} className="text-rose-400 mt-0.5 shrink-0" />
+                 <div>
+                    {/* SIP INPUTS WITH FEEDBACK BELOW */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        {/* EQUITY SIP */}
                         <div>
-                            <p className="text-xs font-bold text-rose-300 mb-0.5">SIP exceeds Monthly Surplus</p>
-                            <p className="text-[11px] text-rose-200/70 leading-relaxed">
-                                You only have <strong className="text-rose-100">{formatCompact((state.annualIncome - state.currentAnnualExpenses)/12)}</strong> available after expenses. 
-                                Your SIPs have been scaled down proportionally to fit this budget.
-                            </p>
+                            <SmartInput 
+                                label="Equity SIP" 
+                                value={state.monthlySIP.equity} 
+                                onChange={v=>updateNested('monthlySIP','equity',v)} 
+                                icon={Coins} 
+                                iconColor="text-emerald-400" 
+                                prefix="₹" 
+                            />
+                            {results?.sipWasCapped && state.monthlySIP.equity > 0 && (
+                                <div className="mt-1 flex justify-end">
+                                    <span className="text-[10px] text-rose-300 font-mono bg-rose-500/10 px-1.5 rounded border border-rose-500/20">
+                                        Max: {formatCompact(results.initialSurplus * (state.monthlySIP.equity / (state.monthlySIP.equity + state.monthlySIP.stable)))}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* STABLE SIP */}
+                        <div>
+                            <SmartInput 
+                                label="Stable SIP (NPS, PPF)" 
+                                value={state.monthlySIP.stable} 
+                                onChange={v=>updateNested('monthlySIP','stable',v)} 
+                                icon={PiggyBank} 
+                                iconColor="text-rose-400" 
+                                prefix="₹" 
+                            />
+                            {results?.sipWasCapped && state.monthlySIP.stable > 0 && (
+                                <div className="mt-1 flex justify-end">
+                                    <span className="text-[10px] text-rose-300 font-mono bg-rose-500/10 px-1.5 rounded border border-rose-500/20">
+                                        Max: {formatCompact(results.initialSurplus * (state.monthlySIP.stable / (state.monthlySIP.equity + state.monthlySIP.stable)))}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
-                 )}
+
+                    {/* GLOBAL SIP WARNING BOX */}
+                    {results?.sipWasCapped && (
+                        <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
+                            <AlertTriangle size={16} className="text-rose-400 mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-xs font-bold text-rose-300 mb-0.5">SIP exceeds Monthly Surplus</p>
+                                <p className="text-[11px] text-rose-200/70 leading-relaxed">
+                                    You only have <strong className="text-rose-100">{formatINR(results.initialSurplus || 0)}</strong> available after expenses. 
+                                    Your SIPs have been scaled down proportionally to fit this budget.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <SliderInput label="SIP Step-Up (Yearly)" value={state.sipStepUp} onChange={v=>updateState('sipStepUp',v)} max={30} step={1} icon={TrendingUp} tooltip="How much you increase investments every year" />
+                    {results?.salaryVsStepUpWarning && (
+                        <p className="text-[10px] text-amber-500 mt-2 flex items-center gap-1 bg-amber-500/10 p-1.5 rounded">
+                            <AlertCircle size={10}/> Warning: Your SIP Step-up is higher than Salary Growth.
+                        </p>
+                    )}
+                 </div>
               </div>
            </CollapsibleSection>
 
+           {/* CURRENT ASSETS */}
            <CollapsibleSection title="Current Assets" icon={Trees} color="text-emerald-500" defaultOpen={false} rightContent={formatCompact(totalNetWorth)}>
               <div className="space-y-4">
                  <div className="p-3 bg-white/5 rounded-xl border border-white/5">
@@ -132,7 +141,7 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
                     </div>
                  </div>
 
-                 {/* CUSTOM ASSETS SECTION */}
+                 {/* CUSTOM ASSETS */}
                  <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-3">
                        <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Alternatives</p>
@@ -161,6 +170,7 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
               </div>
            </CollapsibleSection>
 
+           {/* RETIREMENT TARGET */}
            <CollapsibleSection title="Retirement Target" icon={Star} color="text-amber-400" defaultOpen={false}>
               <div className="grid grid-cols-3 gap-2 mb-4">
                  <SmartInput label="Age Now" value={state.currentAge} onChange={v=>updateState('currentAge',v)} />
@@ -169,7 +179,6 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
               </div>
               <SmartInput label="Target Retirement Spend (Annual)" value={state.retirementAnnualExpenses} onChange={v=>updateState('retirementAnnualExpenses',v)} icon={CreditCard} iconColor="text-rose-400" prefix="₹" tooltip="How much will you spend annually in retirement (in today's value)?" />
               
-              {/* STRESS TEST TOGGLE (NEW) */}
               <div className="mt-4 pt-4 border-t border-white/5">
                   <label className="flex items-center gap-3 cursor-pointer group">
                       <div className={`w-10 h-6 rounded-full p-1 transition-colors ${state.stressTest ? 'bg-rose-500' : 'bg-slate-700'}`}>
@@ -184,15 +193,14 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
               </div>
            </CollapsibleSection>
 
+           {/* ASSUMPTIONS */}
            <CollapsibleSection title="Assumptions & Returns" icon={Snowflake} color="text-white" defaultOpen={false}>
               <div className="space-y-6">
-                 {/* STANDARD ASSETS */}
                  <div className="grid grid-cols-2 gap-x-4 gap-y-6">
                     <SliderInput label="Equity Return" value={state.equityReturn} onChange={v=>updateState('equityReturn',v)} min={8} max={18} />
                     <SliderInput label="Stable Return" value={state.stableReturn} onChange={v=>updateState('stableReturn',v)} min={4} max={10} />
                  </div>
                  
-                 {/* CUSTOM ASSET ASSUMPTIONS */}
                  {state.customAssets.length > 0 && (
                      <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800 space-y-4">
                         <p className="text-[10px] font-bold uppercase text-amber-400">Alternative Asset Growth</p>
