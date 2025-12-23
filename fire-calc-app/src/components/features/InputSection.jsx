@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, Info } from "lucide-react";
+import { Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, Info, AlertTriangle } from "lucide-react";
 import { SmartInput } from '../ui/SmartInput';
 import { SliderInput } from '../ui/SliderInput';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
@@ -8,13 +8,15 @@ import { formatCompact } from '../../utils/formatters';
 export const InputSection = ({ state, updateState, updateNested, addCustomAsset, updateCustomAsset, removeCustomAsset, results, totalNetWorth, totalEquity, totalStable, totalCustom, emergencyCoverageMonths }) => {
   return (
     <div className="space-y-4">
-           {/* PRO TIP BANNER */}
-           <div className="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-lg flex items-start gap-3">
-              <Info className="text-indigo-400 w-5 h-5 flex-shrink-0 mt-0.5" />
+           {/* IMPROVED PRO TIP BANNER (Contrast Fix) */}
+           <div className="bg-slate-900 border border-indigo-500/30 p-4 rounded-xl flex items-start gap-4 shadow-lg shadow-indigo-500/5">
+              <div className="bg-indigo-500/20 p-2 rounded-lg">
+                  <Info className="text-indigo-400 w-5 h-5" />
+              </div>
               <div>
-                 <p className="text-xs font-bold text-indigo-300 uppercase mb-0.5">Pro Tip</p>
-                 <p className="text-xs text-slate-400 leading-snug">
-                   Enter all values in <strong>Today's Value</strong>. The engine automatically handles inflation adjustments for you.
+                 <p className="text-xs font-bold text-indigo-300 uppercase mb-1">Pro Tip</p>
+                 <p className="text-xs text-slate-300 leading-relaxed">
+                   Enter all values in <strong className="text-white">Today's Value</strong>. The engine automatically handles inflation adjustments for you.
                  </p>
               </div>
            </div>
@@ -121,6 +123,20 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
                  <SmartInput label="Live To" value={state.lifeExpectancy} onChange={v=>updateState('lifeExpectancy',v)} />
               </div>
               <SmartInput label="Target Retirement Spend (Annual)" value={state.retirementAnnualExpenses} onChange={v=>updateState('retirementAnnualExpenses',v)} icon={CreditCard} iconColor="text-rose-400" prefix="₹" tooltip="How much will you spend annually in retirement (in today's value)?" />
+              
+              {/* STRESS TEST TOGGLE (NEW) */}
+              <div className="mt-4 pt-4 border-t border-white/5">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className={`w-10 h-6 rounded-full p-1 transition-colors ${state.stressTest ? 'bg-rose-500' : 'bg-slate-700'}`}>
+                          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.stressTest ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                      </div>
+                      <input type="checkbox" className="hidden" checked={state.stressTest || false} onChange={(e) => updateState('stressTest', e.target.checked)} />
+                      <div>
+                          <span className={`text-xs font-bold transition-colors ${state.stressTest ? 'text-rose-400' : 'text-slate-400'}`}>Simulate Market Crash?</span>
+                          <p className="text-[10px] text-slate-500">Applies -20% return for first 2 years of retirement.</p>
+                      </div>
+                  </label>
+              </div>
            </CollapsibleSection>
 
            <CollapsibleSection title="Assumptions & Returns" icon={Snowflake} color="text-white" defaultOpen={false}>
