@@ -113,6 +113,32 @@ export const calculateProjection = (state) => {
             }
         });
 
+        // 1. Calculate Max Investable Surplus (Reality Check)
+        // (Income - Expenses - Recurring Events)
+        const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthlyIncome - monthlyExp - monthlyRecurringOutflow);
+
+        // 2. Cap the SIPs
+        // If the user's "Target SIP" is higher than their "Actual Surplus", clamp it down.
+        let effectiveSipEquity = curSipEquity;
+        let effectiveSipStable = curSipStable;
+        
+        if (!isRetired) {
+            const totalTargetSIP = curSipEquity + curSipStable;
+            
+            if (totalTargetSIP > currentSurplus) {
+                // WARNING: User wants to invest more than they have!
+                // We must reduce the SIPs proportionally to fit the budget.
+                if (totalTargetSIP > 0) {
+                     const ratio = currentSurplus / totalTargetSIP;
+                     effectiveSipEquity *= ratio;
+                     effectiveSipStable *= ratio;
+                } else {
+                     effectiveSipEquity = 0;
+                     effectiveSipStable = 0;
+                }
+            }
+        }
+
         // Emergency Fund Top-Up
         const currentLivingExpense = isRetired ? monthlyExp : (s.currentAnnualExpenses/12 * Math.pow(1 + effectiveInflation/100, m/12));
         const requiredEmergencyFund = (parseFloat(s.emergencyFund / (s.currentAnnualExpenses/12 || 1)) || 0) * currentLivingExpense;
@@ -135,9 +161,9 @@ export const calculateProjection = (state) => {
             let effectiveSipStable = curSipStable;
 
             if (monthlyTopUp > 0) {
-                const totalSip = curSipEquity + curSipStable;
+                const totalSip = effectiveSipEquity + curSipStable;
                 if (totalSip > 0) {
-                    const eqRatio = curSipEquity / totalSip;
+                    const eqRatio = effectiveSipEquity / totalSip;
                     effectiveSipEquity -= monthlyTopUp * eqRatio;
                     effectiveSipStable -= monthlyTopUp * (1 - eqRatio);
                 }
