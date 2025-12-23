@@ -167,7 +167,19 @@ export default function FireCalcPro() {
   const updateEvent = (id, field, val) => updateEvents(events => events.map(e => e.id === id ? { ...e, [field]: val } : e));
   const toggleEventType = (id) => updateEvents(events => events.map(e => e.id === id ? { ...e, type: e.type === 'recurring' ? 'one-time' : 'recurring' } : e));
 
-  const handleReset = () => { if(window.confirm("Reset current scenario to default?")) updateState(DEFAULT_STATE); }; 
+  const handleReset = () => { 
+      if(window.confirm("Reset current scenario to default?")) {
+          setScenarios(prev => ({
+              ...prev,
+              // Overwrite the ACTIVE scenario with DEFAULT_STATE
+              [activeScenarioId]: { 
+                  ...DEFAULT_STATE, 
+                  // ...but keep the current name so the tab doesn't change
+                  scenarioName: prev[activeScenarioId].scenarioName 
+              }
+          }));
+      }
+  };
   const handleClear = () => { if(window.confirm("Clear all data in this scenario?")) updateState({ ...DEFAULT_STATE, scenarioName: state.scenarioName, annualIncome: 0, currentAnnualExpenses: 0, equityAssets: {}, stableAssets: {} }); };
 
   // --- 6. ENGINE CALL ---
