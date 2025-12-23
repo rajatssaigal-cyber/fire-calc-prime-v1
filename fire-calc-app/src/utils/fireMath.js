@@ -1,6 +1,5 @@
 // src/utils/fireMath.js
 
-// Helper: Binary Search for Exact SIP (No changes here)
 const solveForRequiredSIP = (gap, months, ratePerMonth, stepUpAnnual) => {
     let low = 0;
     let high = gap; 
@@ -26,23 +25,21 @@ const solveForRequiredSIP = (gap, months, ratePerMonth, stepUpAnnual) => {
 };
 
 export const calculateProjection = (state) => {
-    // 1. Destructure & Safety Checks
     const s = state;
+    const liabilities = s.liabilities || [];
     const startEquity = Object.values(s.equityAssets).reduce((a, b) => a + (b||0), 0);
     const startStable = Object.values(s.stableAssets).reduce((a, b) => a + (b||0), 0);
     
-    // Check if Stress Test is active
+    // Stress Test Logic
     const doStressTest = s.stressTest === true;
 
-    // 2. Rate Conversions
-    // Base Equity Return (Normal)
+    // Rates
     const rEquityBase = ((Math.min(s.equityReturn, 100)) * (1 - (s.taxEquity/100) * 0.75)) / 100; 
     const rStable = (Math.min(s.stableReturn, 100) * (1 - (s.taxStable/100))) / 100; 
     const effectiveInflation = Math.min(s.inflationRate, 50);
     
     const mrStable = Math.pow(1 + rStable, 1/12) - 1;
     
-    // Custom Asset Growth
     const customAssetsGrowth = s.customAssets.map(asset => {
         const r = (asset.returnRate * (1 - (asset.taxRate/100) * 0.75)) / 100; 
         return { ...asset, mr: Math.pow(1 + r, 1/12) - 1, currentVal: asset.value || 0 };
@@ -65,52 +62,48 @@ export const calculateProjection = (state) => {
     const oneTimeEvents = s.lifeEvents.filter(e => e.type !== 'recurring');
     const recurringEvents = s.lifeEvents.filter(e => e.type === 'recurring');
 
-    // Monthly Income Growth Factor (Annual)
     const monthlyIncomeGrowth = Math.pow(1 + s.salaryGrowth/100, 1/12) - 1;
-    let currentMonthlyIncome = s.annualIncome / 12;
+    
+    // Variables for UI Feedback
+    let sipWasCapped = false;
+    let initialSurplus = 0;
 
-    // START OF LOOP SETUP
-    let sipWasCapped = false; //
-    let initialSurplus = 0; //
-
-    // 3. The Projection Loop
-    // THE LOOP
+    // --- PROJECTION LOOP ---
     for (let m = 1; m <= safeMonthsToProject; m++) {
         const isRetired = m > monthsToRetire;
         const currentAge = s.currentAge + (m/12);
         const isYearStart = (m-1) % 12 === 0;
 
-        // --- 1. DYNAMIC EQUITY RETURN (Crash Logic) ---
+        // 1. Dynamic Return (Crash Logic)
         let currentEquityReturn = rEquityBase;
         if (doStressTest && isRetired && m <= monthsToRetire + 24) {
-             currentEquityReturn = -0.20; 
+             currentEquityReturn = -0.20; // Crash
         }
         const mrEquity = Math.pow(1 + currentEquityReturn, 1/12) - 1;
 
-        // --- 2. INCOME & EXPENSE (FIX: Delay inflation by 1 month so M1 = Base) ---
-        // monthIndex 0 means "Today" (No inflation/growth applied yet)
+        // 2. Income & Expense (Delay Inflation by 1 month so M1 matches inputs)
         const monthIndex = m - 1; 
-
-        // Calculate Income for this specific month
+        
+        // Income
         let currentMonthIncomeVal = 0;
         if (!isRetired) {
             currentMonthIncomeVal = (s.annualIncome / 12) * Math.pow(1 + monthlyIncomeGrowth, monthIndex);
         }
 
-        // Calculate Inflation Multiplier for this specific month
+        // Inflation Multiplier (0 for Month 1)
         const annualExpMultiplier = Math.pow(1 + effectiveInflation/100, monthIndex/12);
-        
-        // Calculate Expense for this specific month
+
+        // Expenses
         const annualExp = s.retirementAnnualExpenses * annualExpMultiplier; // Nominal annual spend
         const monthlyExp = annualExp / 12;
         
-        // Use Current Expenses for Surplus check (not Retirement Expenses)
+        // Current Expense (for Surplus Check)
         const currentMonthExpenseVal = (s.currentAnnualExpenses / 12) * annualExpMultiplier;
 
-        // Calculate Target Corpus (using Retirement Expense)
+        // Target Corpus (Based on Retirement Spend)
         const targetCorpus = (annualExp / (Math.max(0.1, s.safeWithdrawalRate)/100));
 
-        // --- 3. RECURRING OUTFLOWS ---
+        // Recurring Outflows
         let monthlyRecurringOutflow = 0;
         recurringEvents.forEach(e => {
             const endAge = e.endAge > e.age ? e.endAge : s.lifeExpectancy; 
@@ -119,28 +112,37 @@ export const calculateProjection = (state) => {
             }
         });
 
-        // --- 4. SURPLUS CHECK & SIP CAPPING ---
-        // Calculate REAL surplus available for investment
-        const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthIncomeVal - currentMonthExpenseVal - monthlyRecurringOutflow);
+        // Liability Outflows (Home Loans etc)
+        let monthlyLiabilityOutflow = 0;
+        if (!isRetired) {
+            liabilities.forEach(loan => {
+                if (currentAge < loan.endAge) {
+                    monthlyLiabilityOutflow += loan.monthlyEMI;
+                }
+            });
+        }
 
-        // Capture for UI (Month 1 only)
+        // 3. Surplus Calculation & SIP Capping
+        const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthIncomeVal - currentMonthExpenseVal - monthlyRecurringOutflow - monthlyLiabilityOutflow);
+
+        // Capture Initial Surplus (Month 1) for UI
         if (m === 1) initialSurplus = currentSurplus;
 
-        // Apply SIP Step-Up Logic to determine TARGET SIP
+        // SIP Step-Up
         if (!isRetired && isYearStart && m > 1) {
             const stepMult = 1 + s.sipStepUp/100;
             curSipEquity *= stepMult;
             curSipStable *= stepMult;
         }
 
-        // Check if Target SIP exceeds Real Surplus
+        // Apply Cap
         let effectiveSipEquity = curSipEquity;
         let effectiveSipStable = curSipStable;
         
         if (!isRetired) {
             const totalTargetSIP = curSipEquity + curSipStable;
             
-            // +50 buffer for rounding errors
+            // Buffer of +50 to prevent rounding errors
             if (totalTargetSIP > currentSurplus + 50) {
                 sipWasCapped = true;
                 
@@ -155,9 +157,8 @@ export const calculateProjection = (state) => {
             }
         }
 
-        // --- 5. EMERGENCY FUND TOP-UP ---
-    
-        const currentLivingExpense = isRetired ? monthlyExp : (s.currentAnnualExpenses/12 * Math.pow(1 + effectiveInflation/100, m/12));
+        // 4. Emergency Fund Top-Up
+        const currentLivingExpense = isRetired ? monthlyExp : (s.currentAnnualExpenses/12 * annualExpMultiplier);
         const requiredEmergencyFund = (parseFloat(s.emergencyFund / (s.currentAnnualExpenses/12 || 1)) || 0) * currentLivingExpense;
         
         curEmergency *= (1 + mrStable);
@@ -166,39 +167,37 @@ export const calculateProjection = (state) => {
         if (curEmergency < requiredEmergencyFund) {
             const shortfall = requiredEmergencyFund - curEmergency;
             if (!isRetired) {
-                const availableSIP = curSipEquity + curSipStable;
-                monthlyTopUp = Math.min(shortfall, availableSIP);
+                const totalAvailable = effectiveSipEquity + effectiveSipStable;
+                monthlyTopUp = Math.min(shortfall, totalAvailable);
                 curEmergency += monthlyTopUp;
             }
         }
 
+        // 5. Accumulation / Decumulation
         if (!isRetired) {
-                // ACCUMULATION
-                // FIX: Use the 'effective' variables we calculated earlier
-                let sipToAddEquity = effectiveSipEquity; 
-                let sipToAddStable = effectiveSipStable;
+            // ACCUMULATION
+            // Reduce SIPs if money was diverted to Emergency Fund
+            let sipToAddEquity = effectiveSipEquity; 
+            let sipToAddStable = effectiveSipStable;
 
-                // (If you have the Emergency Fund Top-Up logic, ensure it subtracts from these)
-                if (monthlyTopUp > 0) {
-                    const totalAvailable = effectiveSipEquity + effectiveSipStable;
-                    if (totalAvailable > 0) {
-                        const eqRatio = effectiveSipEquity / totalAvailable;
-                        sipToAddEquity -= monthlyTopUp * eqRatio;
-                        sipToAddStable -= monthlyTopUp * (1 - eqRatio);
-                    }
-                }
-
-                curEquity += sipToAddEquity; // <--- Now adding the clamped value
-                curStable += sipToAddStable;
-                
-                const liquidTotal = curEquity + curStable;
-                if (monthlyRecurringOutflow > 0 && liquidTotal > 0) {
-                     const eqRatio = curEquity / liquidTotal;
-                     curEquity -= monthlyRecurringOutflow * eqRatio;
-                     curStable -= monthlyRecurringOutflow * (1 - eqRatio);
+            if (monthlyTopUp > 0) {
+                const totalAvailable = effectiveSipEquity + effectiveSipStable;
+                if (totalAvailable > 0) {
+                    const eqRatio = effectiveSipEquity / totalAvailable;
+                    sipToAddEquity -= monthlyTopUp * eqRatio;
+                    sipToAddStable -= monthlyTopUp * (1 - eqRatio);
                 }
             }
-        else {
+
+            curEquity += sipToAddEquity;
+            curStable += sipToAddStable;
+            
+            // Handle Recurring Outflows from Assets if Income wasn't enough (rare case)
+            const liquidTotal = curEquity + curStable;
+            if (monthlyRecurringOutflow > 0 && liquidTotal > 0 && isRetired) {
+                 // Logic handled in surplus, this is fallback
+            }
+        } else {
             // DECUMULATION
             const totalMonthlyOutflow = monthlyExp + monthlyRecurringOutflow;
             const liquidTotal = curEquity + curStable;
@@ -215,7 +214,7 @@ export const calculateProjection = (state) => {
             yearlyWithdrawal += totalMonthlyOutflow;
         }
 
-        // Growth (Uses the dynamic mrEquity calculated above)
+        // 6. Growth
         if (curEquity > 0) curEquity *= (1 + mrEquity);
         if (curStable > 0) curStable *= (1 + mrStable);
 
@@ -225,7 +224,7 @@ export const calculateProjection = (state) => {
             totalCustomVal += asset.currentVal;
         });
 
-        // One-Time Events
+        // 7. One-Time Events
         const eventHit = oneTimeEvents.find(e => Math.abs(e.age - currentAge) < 0.05 && !e.processed);
         let eventCost = 0;
         if (eventHit) {
@@ -273,9 +272,16 @@ export const calculateProjection = (state) => {
         }
     }
 
-    // 4. Summarize Results
-    const corpusAtRetirement = data.find(d => d.age === effectiveRetireAge)?.balance || 0;
-    const targetAtRetirement = data.find(d => d.age === effectiveRetireAge)?.target || 0;
+    // Summarize
+    const lastData = data[data.length - 1];
+    const corpusAtRetirement = data.find(d => d.age === effectiveRetireAge)?.balance || (lastData ? lastData.balance : 0);
+    
+    let targetAtRetirement = data.find(d => d.age === effectiveRetireAge)?.target;
+    if (!targetAtRetirement && lastData) {
+         const inflationFactor = Math.pow(1 + effectiveInflation/100, effectiveRetireAge/12); 
+         targetAtRetirement = (s.retirementAnnualExpenses * inflationFactor) / (s.safeWithdrawalRate/100);
+    }
+    
     const gap = targetAtRetirement - corpusAtRetirement;
     const realGap = (data.find(d => d.age === effectiveRetireAge)?.realTarget || 0) - (data.find(d => d.age === effectiveRetireAge)?.realBalance || 0);
 
@@ -298,18 +304,14 @@ export const calculateProjection = (state) => {
     }
 
     return {
-        projection: data,
-        gap,
-        realGap,
-        fireAge: reached ? (s.currentAge + fireMonthIndex/12).toFixed(1) : null,
+        projection: data, gap, realGap, fireAge: reached ? (s.currentAge + fireMonthIndex/12).toFixed(1) : null,
         solutions: { saveMore: Math.round(solutionSaveMore), workLonger: solutionWorkLonger, spendLess: Math.round(solutionSpendLess) },
         salaryVsStepUpWarning: s.sipStepUp > s.salaryGrowth,
         emergencyCoverageFuture,
         targetAtRetirement, 
         corpusAtRetirement,
         bankruptcyAge: bankruptcyAge ? bankruptcyAge.toFixed(1) : null,
-        
-        sipWasCapped: sipWasCapped,
-        initialSurplus: initialSurplus
+        sipWasCapped: sipWasCapped, // Return flag
+        initialSurplus: initialSurplus // Return exact surplus
     };
 };
