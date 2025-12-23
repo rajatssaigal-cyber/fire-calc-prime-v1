@@ -159,27 +159,30 @@ export const calculateProjection = (state) => {
         }
 
         if (!isRetired) {
-            // ACCUMULATION
-            let effectiveSipEquity = curSipEquity;
-            let effectiveSipStable = curSipStable;
+                // ACCUMULATION
+                // FIX: Use the 'effective' variables we calculated earlier
+                let sipToAddEquity = effectiveSipEquity; 
+                let sipToAddStable = effectiveSipStable;
 
-            if (monthlyTopUp > 0) {
-                const totalSip = effectiveSipEquity + curSipStable;
-                if (totalSip > 0) {
-                    const eqRatio = effectiveSipEquity / totalSip;
-                    effectiveSipEquity -= monthlyTopUp * eqRatio;
-                    effectiveSipStable -= monthlyTopUp * (1 - eqRatio);
+                // (If you have the Emergency Fund Top-Up logic, ensure it subtracts from these)
+                if (monthlyTopUp > 0) {
+                    const totalAvailable = effectiveSipEquity + effectiveSipStable;
+                    if (totalAvailable > 0) {
+                        const eqRatio = effectiveSipEquity / totalAvailable;
+                        sipToAddEquity -= monthlyTopUp * eqRatio;
+                        sipToAddStable -= monthlyTopUp * (1 - eqRatio);
+                    }
                 }
-            }
 
-            curEquity += effectiveSipEquity;
-            curStable += effectiveSipStable;
-            
-            const liquidTotal = curEquity + curStable;
-            if (monthlyRecurringOutflow > 0 && liquidTotal > 0) {
-                 const eqRatio = curEquity / liquidTotal;
-                 curEquity -= monthlyRecurringOutflow * eqRatio;
-                 curStable -= monthlyRecurringOutflow * (1 - eqRatio);
+                curEquity += sipToAddEquity; // <--- Now adding the clamped value
+                curStable += sipToAddStable;
+                
+                const liquidTotal = curEquity + curStable;
+                if (monthlyRecurringOutflow > 0 && liquidTotal > 0) {
+                     const eqRatio = curEquity / liquidTotal;
+                     curEquity -= monthlyRecurringOutflow * eqRatio;
+                     curStable -= monthlyRecurringOutflow * (1 - eqRatio);
+                }
             }
         } else {
             // DECUMULATION
