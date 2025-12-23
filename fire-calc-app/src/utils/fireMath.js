@@ -70,7 +70,8 @@ export const calculateProjection = (state) => {
     let currentMonthlyIncome = s.annualIncome / 12;
 
     // START OF LOOP SETUP
-    let sipWasCapped = false; // <--- 1. ADD THIS HERE (Outside the loop)
+    let sipWasCapped = false; //
+    let initialSurplus = 0; //
 
     // 3. The Projection Loop
     for (let m = 1; m <= safeMonthsToProject; m++) {
@@ -117,7 +118,12 @@ export const calculateProjection = (state) => {
         });
 
        // 1. Calculate Max Investable Surplus
-        const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthlyIncome - monthlyExp - monthlyRecurringOutflow);
+        // FIX: Calculate the ACTUAL Current Expense for this month (with inflation)
+        const actualCurrentMonthlyExp = (s.currentAnnualExpenses / 12) * Math.pow(1 + effectiveInflation/100, m/12);
+        
+        // Use THAT for the surplus check
+        const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthlyIncome - actualCurrentMonthlyExp - monthlyRecurringOutflow);
+        if (m === 1) initialSurplus = currentSurplus;
 
         // 2. Cap the SIPs
         let effectiveSipEquity = curSipEquity;
@@ -295,6 +301,7 @@ export const calculateProjection = (state) => {
         corpusAtRetirement,
         bankruptcyAge: bankruptcyAge ? bankruptcyAge.toFixed(1) : null,
         
-        sipWasCapped: sipWasCapped // <--- 3. ADD THIS LINE
+        sipWasCapped: sipWasCapped,
+        initialSurplus: initialSurplus
     };
 };
