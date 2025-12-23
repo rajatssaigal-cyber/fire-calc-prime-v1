@@ -69,6 +69,9 @@ export const calculateProjection = (state) => {
     const monthlyIncomeGrowth = Math.pow(1 + s.salaryGrowth/100, 1/12) - 1;
     let currentMonthlyIncome = s.annualIncome / 12;
 
+    // START OF LOOP SETUP
+    let sipWasCapped = false; // <--- 1. ADD THIS HERE (Outside the loop)
+
     // 3. The Projection Loop
     for (let m = 1; m <= safeMonthsToProject; m++) {
         const isRetired = m > monthsToRetire;
@@ -113,12 +116,10 @@ export const calculateProjection = (state) => {
             }
         });
 
-        // 1. Calculate Max Investable Surplus (Reality Check)
-        // (Income - Expenses - Recurring Events)
+       // 1. Calculate Max Investable Surplus
         const currentSurplus = isRetired ? 0 : Math.max(0, currentMonthlyIncome - monthlyExp - monthlyRecurringOutflow);
 
         // 2. Cap the SIPs
-        // If the user's "Target SIP" is higher than their "Actual Surplus", clamp it down.
         let effectiveSipEquity = curSipEquity;
         let effectiveSipStable = curSipStable;
         
@@ -126,8 +127,10 @@ export const calculateProjection = (state) => {
             const totalTargetSIP = curSipEquity + curSipStable;
             
             if (totalTargetSIP > currentSurplus) {
-                // WARNING: User wants to invest more than they have!
-                // We must reduce the SIPs proportionally to fit the budget.
+                
+                sipWasCapped = true; // <--- 2. UPDATE IT HERE
+                
+                // Logic to reduce SIPs...
                 if (totalTargetSIP > 0) {
                      const ratio = currentSurplus / totalTargetSIP;
                      effectiveSipEquity *= ratio;
@@ -278,12 +281,17 @@ export const calculateProjection = (state) => {
     }
 
     return {
-        projection: data, gap, realGap, fireAge: reached ? (s.currentAge + fireMonthIndex/12).toFixed(1) : null,
+        projection: data,
+        gap,
+        realGap,
+        fireAge: reached ? (s.currentAge + fireMonthIndex/12).toFixed(1) : null,
         solutions: { saveMore: Math.round(solutionSaveMore), workLonger: solutionWorkLonger, spendLess: Math.round(solutionSpendLess) },
         salaryVsStepUpWarning: s.sipStepUp > s.salaryGrowth,
         emergencyCoverageFuture,
         targetAtRetirement, 
         corpusAtRetirement,
-        bankruptcyAge: bankruptcyAge ? bankruptcyAge.toFixed(1) : null
+        bankruptcyAge: bankruptcyAge ? bankruptcyAge.toFixed(1) : null,
+        
+        sipWasCapped: sipWasCapped // <--- 3. ADD THIS LINE
     };
 };
