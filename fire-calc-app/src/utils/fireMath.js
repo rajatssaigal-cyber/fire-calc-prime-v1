@@ -1,6 +1,6 @@
 // src/utils/fireMath.js
 
-// Helper: Binary Search for Exact SIP
+// Helper: Binary Search for Exact SIP (No changes here)
 const solveForRequiredSIP = (gap, months, ratePerMonth, stepUpAnnual) => {
     let low = 0;
     let high = gap; 
@@ -31,12 +31,15 @@ export const calculateProjection = (state) => {
     const startEquity = Object.values(s.equityAssets).reduce((a, b) => a + (b||0), 0);
     const startStable = Object.values(s.stableAssets).reduce((a, b) => a + (b||0), 0);
     
+    // Check if Stress Test is active
+    const doStressTest = s.stressTest === true;
+
     // 2. Rate Conversions
-    const rEquity = ((Math.min(s.equityReturn, 100)) * (1 - (s.taxEquity/100) * 0.75)) / 100; 
+    // Base Equity Return (Normal)
+    const rEquityBase = ((Math.min(s.equityReturn, 100)) * (1 - (s.taxEquity/100) * 0.75)) / 100; 
     const rStable = (Math.min(s.stableReturn, 100) * (1 - (s.taxStable/100))) / 100; 
     const effectiveInflation = Math.min(s.inflationRate, 50);
     
-    const mrEquity = Math.pow(1 + rEquity, 1/12) - 1;
     const mrStable = Math.pow(1 + rStable, 1/12) - 1;
     
     // Custom Asset Growth
@@ -71,6 +74,17 @@ export const calculateProjection = (state) => {
         const isRetired = m > monthsToRetire;
         const currentAge = s.currentAge + (m/12);
         const isYearStart = (m-1) % 12 === 0;
+
+        // --- DYNAMIC RETURN RATE (THE CRASH LOGIC) ---
+        let currentEquityReturn = rEquityBase;
+        
+        // If Stress Test is ON, we are Retired, and it's within the first 24 months of retirement
+        if (doStressTest && isRetired && m <= monthsToRetire + 24) {
+             // CRASH: -20% annual return (approx -1.8% monthly)
+             currentEquityReturn = -0.20; 
+        }
+        
+        const mrEquity = Math.pow(1 + currentEquityReturn, 1/12) - 1;
 
         // Salary Growth
         if (!isRetired) {
@@ -155,7 +169,7 @@ export const calculateProjection = (state) => {
             yearlyWithdrawal += totalMonthlyOutflow;
         }
 
-        // Growth
+        // Growth (Uses the dynamic mrEquity calculated above)
         if (curEquity > 0) curEquity *= (1 + mrEquity);
         if (curStable > 0) curStable *= (1 + mrStable);
 
@@ -224,7 +238,7 @@ export const calculateProjection = (state) => {
     if (gap > 0) {
         const totalSip = s.monthlySIP.equity + s.monthlySIP.stable;
         const eqWeight = totalSip > 0 ? s.monthlySIP.equity / totalSip : 0.6; 
-        const blendR = (rEquity * eqWeight) + (rStable * (1-eqWeight));
+        const blendR = (rEquityBase * eqWeight) + (rStable * (1-eqWeight));
         const ratePerMonth = blendR / 12;
         
         if (monthsToRetire > 0) {
