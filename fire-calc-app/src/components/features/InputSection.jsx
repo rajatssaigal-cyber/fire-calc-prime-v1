@@ -46,18 +46,7 @@ export const InputSection = ({
 
   return (
     <div className="space-y-6">
-           {/* PRO TIP BANNER */}
-           <div className="bg-slate-900 border border-indigo-500/30 p-4 rounded-xl flex items-start gap-4 shadow-lg shadow-indigo-500/5">
-              <div className="bg-indigo-500/20 p-2 rounded-lg">
-                  <Info className="text-indigo-400 w-5 h-5" />
-              </div>
-              <div>
-                 <p className="text-xs font-bold text-indigo-300 uppercase mb-1">Pro Tip</p>
-                 <p className="text-xs text-slate-300 leading-relaxed">
-                   Enter all values in <strong className="text-white">Today's Value</strong>. The engine automatically handles inflation adjustments for you.
-                 </p>
-              </div>
-           </div>
+           
            
            {/* 1. CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
