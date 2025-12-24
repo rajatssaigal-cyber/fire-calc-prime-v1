@@ -451,7 +451,11 @@ export default function FireCalcPro() {
                     hasData={hasData}
                     netCashflow={netCashflow}
                     monthlyIncome={monthlyIncome}
-                    monthlyExpenses={monthlyExpenses} // Passed original base expenses for detail view
+                    
+                    // --- FIX IS HERE ---
+                    monthlyExpenses={monthlyBaseExpenses} 
+                    // -------------------
+                    
                     totalSIP={totalSIP}
                     showRealValue={showRealValue}
                     setShowRealValue={setShowRealValue}
