@@ -6,12 +6,32 @@ import { SliderInput } from '../ui/SliderInput';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { formatCompact, formatINR } from '../../utils/formatters';
 
-export const InputSection = ({ state, updateState, addLiability, updateLiability, removeLiability, updateNested, addCustomAsset, updateCustomAsset, removeCustomAsset, results, totalNetWorth, totalEquity, totalStable, totalCustom, emergencyCoverageMonths }) => {
+export const InputSection = ({ 
+    state, 
+    updateState, 
+    updateNested, 
+    addCustomAsset, 
+    updateCustomAsset, 
+    removeCustomAsset, 
+    addLiability,     
+    updateLiability,  
+    removeLiability,  
+    results, 
+    totalNetWorth, 
+    totalEquity, 
+    totalStable, 
+    totalCustom, 
+    emergencyCoverageMonths 
+}) => {
   
   const totalSIP = state.monthlySIP.equity + state.monthlySIP.stable;
   const availableSurplus = results?.initialSurplus || 0;
   // +50 buffer
   const isOverBudget = totalSIP > (availableSurplus + 50);
+
+  // Safety fallbacks in case old state is loaded
+  const liabilities = state.liabilities || [];
+  const customAssets = state.customAssets || [];
 
   return (
     <div className="space-y-4">
@@ -124,13 +144,14 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                     </div>
                  </div>
 
+                 {/* CUSTOM ASSETS (Safe Map) */}
                  <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-3">
                        <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Alternatives</p>
                        <p className="text-xs font-mono font-bold text-white bg-amber-500/20 px-1.5 py-0.5 rounded">{formatCompact(totalCustom)}</p>
                     </div>
                     <div className="space-y-3">
-                        {state.customAssets.map(asset => (
+                        {customAssets.map(asset => (
                             <div key={asset.id} className="flex gap-2 items-start">
                                 <div className="flex-1 space-y-2">
                                     <input 
@@ -152,7 +173,7 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
               </div>
            </CollapsibleSection>
 
-{/* NEW: LIABILITIES SECTION */}
+           {/* LOANS & LIABILITIES (Safe Map) */}
            <CollapsibleSection title="Loans & Liabilities" icon={Landmark} color="text-rose-500" defaultOpen={false}>
               <div className="space-y-4">
                  <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
@@ -161,7 +182,7 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                     </p>
                     
                     <div className="space-y-3">
-                        {state.liabilities.map(loan => (
+                        {liabilities.map(loan => (
                             <div key={loan.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3">
                                 <div className="flex gap-2 items-center">
                                     <input 
@@ -191,8 +212,6 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                                         tooltip={`Loan ends in ${(loan.endAge - state.currentAge).toFixed(1)} years`}
                                     />
                                 </div>
-                                
-                                {/* Optional: Outstanding Principal (for Net Worth calculation) */}
                                 <div className="pt-2 border-t border-slate-800/50">
                                      <SmartInput 
                                         label="Outstanding Balance (Optional)" 
@@ -212,7 +231,7 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                  </div>
               </div>
            </CollapsibleSection>
-      
+
            {/* RETIREMENT TARGET */}
            <CollapsibleSection title="Retirement Target" icon={Star} color="text-amber-400" defaultOpen={false}>
               <div className="grid grid-cols-3 gap-2 mb-4">
@@ -222,7 +241,6 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
               </div>
               <SmartInput label="Target Retirement Spend (Annual)" value={state.retirementAnnualExpenses} onChange={v=>updateState('retirementAnnualExpenses',v)} icon={CreditCard} iconColor="text-rose-400" prefix="₹" tooltip="How much will you spend annually in retirement (in today's value)?" />
               
-              {/* STRESS TEST TOGGLE + BLUEPRINT */}
               <div className="mt-4 pt-4 border-t border-white/5">
                   <div className="flex justify-between items-start">
                      <div className="flex items-start gap-3">
@@ -247,7 +265,6 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                      </label>
                   </div>
                   
-                  {/* STRESS TEST BLUEPRINT */}
                   {state.stressTest && (
                      <div className="mt-4 bg-slate-950/50 border border-rose-500/20 p-3 rounded-lg space-y-2 animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-center gap-2 mb-1">
@@ -273,7 +290,6 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                     <SliderInput label="Stable Return" value={state.stableReturn} onChange={v=>updateState('stableReturn',v)} min={4} max={10} />
                  </div>
                  
-                 {/* TAX HARVESTING TOGGLE + BLUEPRINT */}
                  <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                     <div className="flex justify-between items-start">
                         <div className="flex items-start gap-3">
@@ -298,7 +314,6 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                         </label>
                     </div>
                     
-                    {/* BLUEPRINT CARD: Only show if ON */}
                     {state.taxHarvesting && results?.harvestingBonusWealth > 0 && (
                         <div className="mt-4 pt-3 border-t border-emerald-500/20 animate-in fade-in slide-in-from-top-2">
                             <div className="flex justify-between items-end mb-2">
@@ -328,7 +343,7 @@ export const InputSection = ({ state, updateState, addLiability, updateLiability
                     )}
                  </div>
 
-                 {state.customAssets.length > 0 && (
+                 {state.customAssets?.length > 0 && (
                      <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800 space-y-4">
                         <p className="text-[10px] font-bold uppercase text-amber-400">Alternative Asset Growth</p>
                         {state.customAssets.map(asset => (
