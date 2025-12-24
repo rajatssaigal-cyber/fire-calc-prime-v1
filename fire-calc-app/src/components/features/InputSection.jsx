@@ -174,58 +174,68 @@ export const InputSection = ({
            </CollapsibleSection>
 
            {/* LOANS & LIABILITIES (Safe Map) */}
+           {/* LOANS & LIABILITIES */}
            <CollapsibleSection title="Loans & Liabilities" icon={Landmark} color="text-rose-500" defaultOpen={false}>
               <div className="space-y-4">
                  <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
-                    <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                    <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                         Add loans here instead of in "Monthly Expense". The engine will automatically stop deducting the EMI once the loan is paid off.
                     </p>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {liabilities.map(loan => (
-                            <div key={loan.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3">
-                                <div className="flex gap-2 items-center">
-                                    <input 
-                                        className="flex-1 bg-transparent text-slate-100 text-sm font-bold outline-none placeholder:text-slate-600"
-                                        value={loan.name}
-                                        onChange={(e) => updateLiability(loan.id, 'name', e.target.value)}
-                                        placeholder="Loan Name"
-                                    />
-                                    <button onClick={()=>removeLiability(loan.id)} className="text-slate-600 hover:text-rose-500 transition-colors">
-                                        <Trash2 size={14}/>
+                            <div key={loan.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-sm space-y-4 relative group transition-all hover:border-slate-700">
+                                {/* Header: Name & Delete */}
+                                <div className="flex justify-between items-start gap-3">
+                                    <div className="flex-1">
+                                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Loan Name</label>
+                                        <input 
+                                            className="w-full bg-transparent text-slate-200 text-sm font-bold outline-none placeholder:text-slate-600 border-b border-transparent focus:border-rose-500/50 pb-1 transition-all"
+                                            value={loan.name}
+                                            onChange={(e) => updateLiability(loan.id, 'name', e.target.value)}
+                                            placeholder="e.g. Home Loan"
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={()=>removeLiability(loan.id)} 
+                                        className="p-2 rounded-lg bg-slate-900 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                        title="Delete Loan"
+                                    >
+                                        <Trash2 size={16}/>
                                     </button>
                                 </div>
                                 
-                                <div className="grid grid-cols-2 gap-3">
+                                {/* Row 1: EMI & Tenure */}
+                                <div className="grid grid-cols-2 gap-4">
                                     <SmartInput 
                                         label="Monthly EMI" 
                                         value={loan.monthlyEMI} 
                                         onChange={v=>updateLiability(loan.id, 'monthlyEMI', v)} 
                                         prefix="₹" 
-                                        className="h-8 text-xs"
                                     />
                                     <SmartInput 
                                         label="Ends at Age" 
                                         value={loan.endAge} 
                                         onChange={v=>updateLiability(loan.id, 'endAge', v)} 
-                                        className="h-8 text-xs"
                                         tooltip={`Loan ends in ${(loan.endAge - state.currentAge).toFixed(1)} years`}
                                     />
                                 </div>
-                                <div className="pt-2 border-t border-slate-800/50">
+                                
+                                {/* Row 2: Balance (Separated) */}
+                                <div className="pt-4 mt-2 border-t border-slate-800/50">
                                      <SmartInput 
                                         label="Outstanding Balance (Optional)" 
                                         value={loan.outstandingAmount} 
                                         onChange={v=>updateLiability(loan.id, 'outstandingAmount', v)} 
                                         prefix="₹" 
-                                        className="h-8 text-xs"
+                                        className="text-slate-400"
                                     />
                                 </div>
                             </div>
                         ))}
                         
-                        <button onClick={addLiability} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-slate-700 text-xs text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-all font-bold uppercase tracking-wide">
-                            <Plus size={14}/> Add Home/Car Loan
+                        <button onClick={addLiability} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-slate-700 text-xs text-slate-400 hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/5 transition-all font-bold uppercase tracking-wide">
+                            <Plus size={16}/> Add Home / Car Loan
                         </button>
                     </div>
                  </div>
