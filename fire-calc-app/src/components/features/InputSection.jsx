@@ -44,6 +44,11 @@ export const InputSection = ({
   return (
     <div className="space-y-6">
            
+           {/* -------------------------------------------------------
+              NOTE: Banners removed. They are now in FireCalcPro.jsx
+              -------------------------------------------------------
+           */}
+
            {/* 1. CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
               <div className="space-y-4">
