@@ -369,8 +369,8 @@ export default function FireCalcPro() {
                         {netCashflow >= 0 ? 'Cashflow Healthy' : 'Cashflow Alert'}
                     </h3>
                     <p className="text-xs text-slate-300 mt-1">
-                        You have a surplus of <strong className={netCashflow >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(netCashflow)}/mo</strong> right now.
-                    </p>
+    You have a {netCashflow >= 0 ? 'surplus' : 'deficit'} of <strong className={netCashflow >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(Math.abs(netCashflow))}/mo</strong> right now.
+</p>
                     
                     {/* FUTURE UNLOCK MESSAGE */}
                     {totalEMI > 0 && maxLoanAge > state.currentAge && (
@@ -452,9 +452,9 @@ export default function FireCalcPro() {
                     netCashflow={netCashflow}
                     monthlyIncome={monthlyIncome}
                     
-                    // --- FIX IS HERE ---
+                    
                     monthlyExpenses={monthlyBaseExpenses} 
-                    // -------------------
+                    
                     
                     totalSIP={totalSIP}
                     showRealValue={showRealValue}
