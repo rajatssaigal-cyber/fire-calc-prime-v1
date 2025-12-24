@@ -358,56 +358,70 @@ export default function FireCalcPro() {
       ) : (
       <main className="max-w-7xl mx-auto p-4 md:p-8 pb-40 lg:pb-8 animate-in fade-in duration-500 relative z-10">
         
-        {/* --- ADDED: CASHFLOW REALITY CHECK BANNER --- */}
-        <div className={`mb-8 p-4 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg transition-all ${netCashflow >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
-            <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-full ${netCashflow >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                    {netCashflow >= 0 ? <ShieldCheck size={24} /> : <AlertTriangle size={24} />}
+       {/* --- MASTER CASHFLOW BANNER --- */}
+        <div className={`mb-8 p-5 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-6 shadow-lg transition-all ${netCashflow >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+            
+            {/* LEFT: STATUS & FUTURE UNLOCK */}
+            <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-full mt-1 ${netCashflow >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                    {netCashflow >= 0 ? <ShieldCheck size={28} /> : <AlertTriangle size={28} />}
                 </div>
                 <div>
-                    <h3 className={`font-bold text-sm uppercase tracking-wider ${netCashflow >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                        {netCashflow >= 0 ? 'Cashflow Healthy' : 'Cashflow Alert'}
+                    <h3 className={`font-bold text-base uppercase tracking-wider ${netCashflow >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {netCashflow >= 0 ? 'Cashflow Healthy' : 'Cashflow Deficit'}
                     </h3>
-                    <p className="text-xs text-slate-300 mt-1">
-    You have a {netCashflow >= 0 ? 'surplus' : 'deficit'} of <strong className={netCashflow >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(Math.abs(netCashflow))}/mo</strong> right now.
-</p>
+                    <p className="text-sm text-slate-300 mt-1 leading-relaxed">
+                        You have a {netCashflow >= 0 ? 'surplus' : 'deficit'} of <strong className={netCashflow >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(Math.abs(netCashflow))}/mo</strong> available.
+                    </p>
                     
-                    {/* FUTURE UNLOCK MESSAGE */}
+                    {/* FUTURE UNLOCK PILL */}
                     {totalEMI > 0 && maxLoanAge > state.currentAge && (
-                        <div className="mt-2 flex items-center gap-2 text-[10px] bg-slate-900/40 py-1 px-2 rounded-lg border border-white/5 w-fit">
-                            <TrendingUp size={12} className="text-emerald-400" />
+                        <div className="mt-3 flex items-center gap-2 text-xs bg-slate-900/60 py-1.5 px-3 rounded-lg border border-white/5 w-fit">
+                            <TrendingUp size={14} className="text-emerald-400" />
                             <span className="text-slate-400">
-                                Surplus jumps by <strong className="text-emerald-300">+{formatCompact(totalEMI)}</strong> at Age {maxLoanAge} (Debt Free)
+                                Cashflow jumps by <strong className="text-emerald-300">+{formatCompact(totalEMI)}</strong> at Age {maxLoanAge} (Debt Free)
                             </span>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* MINI BREAKDOWN TABLE */}
-            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center gap-3 text-xs">
+            {/* RIGHT: DETAILED BREAKDOWN (Now includes EMI) */}
+            <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex flex-wrap justify-center items-center gap-4 text-xs">
                 <div className="text-center">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase">Income</p>
-                    <p className="font-mono font-bold text-emerald-400">{formatCompact(monthlyIncome)}</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Income</p>
+                    <p className="font-mono font-bold text-emerald-400 text-sm">{formatCompact(monthlyIncome)}</p>
                 </div>
                 <span className="text-slate-600 font-bold">-</span>
+                
+                {/* SPLIT SPEND INTO BASE + EMI */}
                 <div className="text-center">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase">Spend<span className="text-rose-500">*</span></p>
-                    <p className="font-mono font-bold text-rose-400">{formatCompact(totalMonthlySpend)}</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Base Exp</p>
+                    <p className="font-mono font-bold text-slate-200 text-sm">{formatCompact(monthlyBaseExpenses)}</p>
                 </div>
+                
+                {totalEMI > 0 && (
+                    <>
+                    <span className="text-slate-600 font-bold">-</span>
+                    <div className="text-center">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">EMI</p>
+                        <p className="font-mono font-bold text-rose-400 text-sm">{formatCompact(totalEMI)}</p>
+                    </div>
+                    </>
+                )}
+                
                 <span className="text-slate-600 font-bold">-</span>
                 <div className="text-center">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase">SIP</p>
-                    <p className="font-mono font-bold text-amber-400">{formatCompact(totalSIP)}</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">SIP</p>
+                    <p className="font-mono font-bold text-amber-400 text-sm">{formatCompact(totalSIP)}</p>
                 </div>
                 <span className="text-slate-600 font-bold">=</span>
                 <div className="text-center">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase">Net</p>
-                    <p className={`font-mono font-bold ${netCashflow >= 0 ? 'text-white' : 'text-rose-500'}`}>{formatCompact(netCashflow)}</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Net</p>
+                    <p className={`font-mono font-bold text-sm ${netCashflow >= 0 ? 'text-white' : 'text-rose-500'}`}>{formatCompact(netCashflow)}</p>
                 </div>
             </div>
         </div>
-        {/* --- END BANNER --- */}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* SCENARIO TABS */}
