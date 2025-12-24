@@ -22,6 +22,7 @@ const DEFAULT_STATE = {
   equityAssets: { mutualFunds: 500000, stocks: 200000 },
   stableAssets: { epf: 300000, ppf: 100000, nps: 0, gold: 50000, cash: 100000 }, 
   customAssets: [], 
+  liabilities: [],
   emergencyFund: 500000,
   annualIncome: 2400000, currentAnnualExpenses: 1200000,
   monthlySIP: { equity: 50000, stable: 10000 },
@@ -155,6 +156,48 @@ export default function FireCalcPro() {
       });
   };
 
+// LIABILITY HANDLERS
+  const addLiability = () => {
+    setScenarios(prev => ({
+      ...prev,
+      [activeScenarioId]: {
+        ...prev[activeScenarioId],
+        liabilities: [
+          ...prev[activeScenarioId].liabilities,
+          { 
+            id: Date.now(), 
+            name: 'Home Loan', 
+            monthlyEMI: 30000, 
+            outstandingAmount: 2500000, 
+            endAge: prev[activeScenarioId].currentAge + 15 // Default 15 years tenure
+          }
+        ]
+      }
+    }));
+  };
+
+  const updateLiability = (id, field, value) => {
+    setScenarios(prev => ({
+      ...prev,
+      [activeScenarioId]: {
+        ...prev[activeScenarioId],
+        liabilities: prev[activeScenarioId].liabilities.map(l => 
+          l.id === id ? { ...l, [field]: field === 'name' ? value : parseFloat(value) || 0 } : l
+        )
+      }
+    }));
+  };
+
+  const removeLiability = (id) => {
+    setScenarios(prev => ({
+      ...prev,
+      [activeScenarioId]: {
+        ...prev[activeScenarioId],
+        liabilities: prev[activeScenarioId].liabilities.filter(l => l.id !== id)
+      }
+    }));
+  };
+  
   const updateEvents = (fn) => {
       setScenarios(prev => {
           const curr = prev[activeScenarioId];
@@ -310,6 +353,9 @@ export default function FireCalcPro() {
                 addCustomAsset={addCustomAsset}
                 updateCustomAsset={updateCustomAsset}
                 removeCustomAsset={removeCustomAsset}
+                addLiability={addLiability}
+                updateLiability={updateLiability}
+                removeLiability={removeLiability}
                 results={results}
                 totalNetWorth={totalNetWorth}
                 totalEquity={totalEquity}
