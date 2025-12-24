@@ -6,7 +6,7 @@ import { SliderInput } from '../ui/SliderInput';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { formatCompact, formatINR } from '../../utils/formatters';
 
-export const InputSection = ({ state, updateState, updateNested, addCustomAsset, updateCustomAsset, removeCustomAsset, results, totalNetWorth, totalEquity, totalStable, totalCustom, emergencyCoverageMonths }) => {
+export const InputSection = ({ state, updateState, addLiability, updateLiability, removeLiability, updateNested, addCustomAsset, updateCustomAsset, removeCustomAsset, results, totalNetWorth, totalEquity, totalStable, totalCustom, emergencyCoverageMonths }) => {
   
   const totalSIP = state.monthlySIP.equity + state.monthlySIP.stable;
   const availableSurplus = results?.initialSurplus || 0;
@@ -152,6 +152,67 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
               </div>
            </CollapsibleSection>
 
+{/* NEW: LIABILITIES SECTION */}
+           <CollapsibleSection title="Loans & Liabilities" icon={Landmark} color="text-rose-500" defaultOpen={false}>
+              <div className="space-y-4">
+                 <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+                    <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                        Add loans here instead of in "Monthly Expense". The engine will automatically stop deducting the EMI once the loan is paid off.
+                    </p>
+                    
+                    <div className="space-y-3">
+                        {state.liabilities.map(loan => (
+                            <div key={loan.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3">
+                                <div className="flex gap-2 items-center">
+                                    <input 
+                                        className="flex-1 bg-transparent text-slate-100 text-sm font-bold outline-none placeholder:text-slate-600"
+                                        value={loan.name}
+                                        onChange={(e) => updateLiability(loan.id, 'name', e.target.value)}
+                                        placeholder="Loan Name"
+                                    />
+                                    <button onClick={()=>removeLiability(loan.id)} className="text-slate-600 hover:text-rose-500 transition-colors">
+                                        <Trash2 size={14}/>
+                                    </button>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                    <SmartInput 
+                                        label="Monthly EMI" 
+                                        value={loan.monthlyEMI} 
+                                        onChange={v=>updateLiability(loan.id, 'monthlyEMI', v)} 
+                                        prefix="₹" 
+                                        className="h-8 text-xs"
+                                    />
+                                    <SmartInput 
+                                        label="Ends at Age" 
+                                        value={loan.endAge} 
+                                        onChange={v=>updateLiability(loan.id, 'endAge', v)} 
+                                        className="h-8 text-xs"
+                                        tooltip={`Loan ends in ${(loan.endAge - state.currentAge).toFixed(1)} years`}
+                                    />
+                                </div>
+                                
+                                {/* Optional: Outstanding Principal (for Net Worth calculation) */}
+                                <div className="pt-2 border-t border-slate-800/50">
+                                     <SmartInput 
+                                        label="Outstanding Balance (Optional)" 
+                                        value={loan.outstandingAmount} 
+                                        onChange={v=>updateLiability(loan.id, 'outstandingAmount', v)} 
+                                        prefix="₹" 
+                                        className="h-8 text-xs"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                        
+                        <button onClick={addLiability} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-slate-700 text-xs text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-all font-bold uppercase tracking-wide">
+                            <Plus size={14}/> Add Home/Car Loan
+                        </button>
+                    </div>
+                 </div>
+              </div>
+           </CollapsibleSection>
+      
            {/* RETIREMENT TARGET */}
            <CollapsibleSection title="Retirement Target" icon={Star} color="text-amber-400" defaultOpen={false}>
               <div className="grid grid-cols-3 gap-2 mb-4">
