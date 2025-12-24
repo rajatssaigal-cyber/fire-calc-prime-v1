@@ -2,12 +2,12 @@ import React from 'react';
 import { 
     Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, 
     Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, 
-    Info, AlertTriangle, Sprout, TrendingDown, CheckCircle
+    Info, AlertTriangle, Sprout, TrendingDown 
 } from "lucide-react";
 import { SmartInput } from '../ui/SmartInput';
 import { SliderInput } from '../ui/SliderInput';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
-import { formatCompact, formatINR } from '../../utils/formatters';
+import { formatCompact } from '../../utils/formatters';
 
 export const InputSection = ({ 
     state, 
@@ -31,21 +31,17 @@ export const InputSection = ({
   const liabilities = state.liabilities || [];
   const customAssets = state.customAssets || [];
 
-  // 1. Calculate Real Cashflow (Income - Expenses - EMIs - SIPs)
+  // Calculate Real Cashflow for Budget Warning
   const monthlyIncome = state.annualIncome / 12;
   const monthlyBaseSpend = state.currentAnnualExpenses / 12;
   const totalEMI = liabilities.reduce((sum, l) => sum + (parseFloat(l.monthlyEMI) || 0), 0);
   const totalSpend = monthlyBaseSpend + totalEMI;
   const totalSIP = state.monthlySIP.equity + state.monthlySIP.stable;
   
-  // Net Surplus available for Lifestyle or More Investing
+  // Net Surplus available
   const netSurplus = monthlyIncome - totalSpend - totalSIP;
   
-  // Future Unlock Logic: When does the debt end?
-  const maxLoanAge = liabilities.reduce((max, l) => Math.max(max, l.endAge || 0), 0);
-  
-  // Budget Warning Logic (Uncapped Model)
-  // +50 buffer to prevent rounding errors
+  // Budget Warning Logic (+50 buffer)
   const isOverBudget = netSurplus < -50; 
 
   return (
@@ -62,57 +58,6 @@ export const InputSection = ({
                  </p>
               </div>
            </div>
-           
-           {/* SMART CASHFLOW REALITY CHECK BANNER */}
-           <div className={`p-4 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg transition-all ${netSurplus >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
-                <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-full ${netSurplus >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                        {netSurplus >= 0 ? <ShieldCheck size={24} /> : <AlertTriangle size={24} />}
-                    </div>
-                    <div>
-                        <h3 className={`font-bold text-sm uppercase tracking-wider ${netSurplus >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                            {netSurplus >= 0 ? 'Cashflow Healthy' : 'Cashflow Alert'}
-                        </h3>
-                        <p className="text-xs text-slate-300 mt-1">
-                            You have a surplus of <strong className={netSurplus >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(netSurplus)}/mo</strong> right now.
-                        </p>
-                        
-                        {/* FUTURE UNLOCK MESSAGE */}
-                        {totalEMI > 0 && maxLoanAge > state.currentAge && (
-                            <div className="mt-2 flex items-center gap-2 text-[10px] bg-slate-900/40 py-1 px-2 rounded-lg border border-white/5 w-fit">
-                                <TrendingUp size={12} className="text-emerald-400" />
-                                <span className="text-slate-400">
-                                    Surplus jumps by <strong className="text-emerald-300">+{formatCompact(totalEMI)}</strong> at Age {maxLoanAge} (Debt Free)
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* MINI BREAKDOWN TABLE */}
-                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center gap-3 text-xs">
-                    <div className="text-center">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Income</p>
-                        <p className="font-mono font-bold text-emerald-400">{formatCompact(monthlyIncome)}</p>
-                    </div>
-                    <span className="text-slate-600 font-bold">-</span>
-                    <div className="text-center">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Spend+EMI</p>
-                        <p className="font-mono font-bold text-rose-400">{formatCompact(totalSpend)}</p>
-                    </div>
-                    <span className="text-slate-600 font-bold">-</span>
-                    <div className="text-center">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">SIP</p>
-                        <p className="font-mono font-bold text-amber-400">{formatCompact(totalSIP)}</p>
-                    </div>
-                    <span className="text-slate-600 font-bold">=</span>
-                    <div className="text-center">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Net</p>
-                        <p className={`font-mono font-bold ${netSurplus >= 0 ? 'text-white' : 'text-rose-500'}`}>{formatCompact(netSurplus)}</p>
-                    </div>
-                </div>
-           </div>
-
            
            {/* 1. CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
@@ -145,7 +90,7 @@ export const InputSection = ({
                         />
                     </div>
 
-                    {/* SIMPLE BUDGET WARNING */}
+                    {/* SIMPLE BUDGET WARNING (Fits nicely inside sidebar) */}
                     {isOverBudget && (
                         <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
                             <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
