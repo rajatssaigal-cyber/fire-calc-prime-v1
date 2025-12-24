@@ -1,6 +1,9 @@
-// src/components/features/InputSection.jsx
 import React from 'react';
-import { Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, Info, AlertTriangle, Sprout, TrendingDown } from "lucide-react";
+import { 
+    Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, 
+    Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, 
+    Info, AlertTriangle, Sprout, TrendingDown, CheckCircle
+} from "lucide-react";
 import { SmartInput } from '../ui/SmartInput';
 import { SliderInput } from '../ui/SliderInput';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
@@ -24,17 +27,29 @@ export const InputSection = ({
     emergencyCoverageMonths 
 }) => {
   
-  const totalSIP = state.monthlySIP.equity + state.monthlySIP.stable;
-  const availableSurplus = results?.initialSurplus || 0;
-  // +50 buffer
-  const isOverBudget = totalSIP > (availableSurplus + 50);
-
-  // Safety fallbacks in case old state is loaded
+  // Safety checks for arrays (prevents crashes with old saves)
   const liabilities = state.liabilities || [];
   const customAssets = state.customAssets || [];
 
+  // 1. Calculate Real Cashflow (Income - Expenses - EMIs - SIPs)
+  const monthlyIncome = state.annualIncome / 12;
+  const monthlyBaseSpend = state.currentAnnualExpenses / 12;
+  const totalEMI = liabilities.reduce((sum, l) => sum + (parseFloat(l.monthlyEMI) || 0), 0);
+  const totalSpend = monthlyBaseSpend + totalEMI;
+  const totalSIP = state.monthlySIP.equity + state.monthlySIP.stable;
+  
+  // Net Surplus available for Lifestyle or More Investing
+  const netSurplus = monthlyIncome - totalSpend - totalSIP;
+  
+  // Future Unlock Logic: When does the debt end?
+  const maxLoanAge = liabilities.reduce((max, l) => Math.max(max, l.endAge || 0), 0);
+  
+  // Budget Warning Logic (Uncapped Model)
+  // +50 buffer to prevent rounding errors
+  const isOverBudget = netSurplus < -50; 
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
            {/* PRO TIP BANNER */}
            <div className="bg-slate-900 border border-indigo-500/30 p-4 rounded-xl flex items-start gap-4 shadow-lg shadow-indigo-500/5">
               <div className="bg-indigo-500/20 p-2 rounded-lg">
@@ -48,13 +63,64 @@ export const InputSection = ({
               </div>
            </div>
            
-           {/* CASHFLOW ENGINE */}
+           {/* SMART CASHFLOW REALITY CHECK BANNER */}
+           <div className={`p-4 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg transition-all ${netSurplus >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+                <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-full ${netSurplus >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                        {netSurplus >= 0 ? <ShieldCheck size={24} /> : <AlertTriangle size={24} />}
+                    </div>
+                    <div>
+                        <h3 className={`font-bold text-sm uppercase tracking-wider ${netSurplus >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {netSurplus >= 0 ? 'Cashflow Healthy' : 'Cashflow Alert'}
+                        </h3>
+                        <p className="text-xs text-slate-300 mt-1">
+                            You have a surplus of <strong className={netSurplus >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(netSurplus)}/mo</strong> right now.
+                        </p>
+                        
+                        {/* FUTURE UNLOCK MESSAGE */}
+                        {totalEMI > 0 && maxLoanAge > state.currentAge && (
+                            <div className="mt-2 flex items-center gap-2 text-[10px] bg-slate-900/40 py-1 px-2 rounded-lg border border-white/5 w-fit">
+                                <TrendingUp size={12} className="text-emerald-400" />
+                                <span className="text-slate-400">
+                                    Surplus jumps by <strong className="text-emerald-300">+{formatCompact(totalEMI)}</strong> at Age {maxLoanAge} (Debt Free)
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* MINI BREAKDOWN TABLE */}
+                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center gap-3 text-xs">
+                    <div className="text-center">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Income</p>
+                        <p className="font-mono font-bold text-emerald-400">{formatCompact(monthlyIncome)}</p>
+                    </div>
+                    <span className="text-slate-600 font-bold">-</span>
+                    <div className="text-center">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Spend+EMI</p>
+                        <p className="font-mono font-bold text-rose-400">{formatCompact(totalSpend)}</p>
+                    </div>
+                    <span className="text-slate-600 font-bold">-</span>
+                    <div className="text-center">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">SIP</p>
+                        <p className="font-mono font-bold text-amber-400">{formatCompact(totalSIP)}</p>
+                    </div>
+                    <span className="text-slate-600 font-bold">=</span>
+                    <div className="text-center">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Net</p>
+                        <p className={`font-mono font-bold ${netSurplus >= 0 ? 'text-white' : 'text-rose-500'}`}>{formatCompact(netSurplus)}</p>
+                    </div>
+                </div>
+           </div>
+
+           
+           {/* 1. CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
               <div className="space-y-4">
                  <div className="p-3 bg-slate-900/50 rounded-xl border border-white/5">
                     <div className="grid grid-cols-2 gap-3 mb-2">
                         <SmartInput label="Monthly Income (Post Tax)" value={state.annualIncome / 12} onChange={v=>updateState('annualIncome', v * 12)} icon={Banknote} iconColor="text-emerald-500" prefix="₹" />
-                        <SmartInput label="Monthly Expense" value={state.currentAnnualExpenses / 12} onChange={v=>updateState('currentAnnualExpenses', v * 12)} icon={CreditCard} iconColor="text-rose-500" prefix="₹" />
+                        <SmartInput label="Base Monthly Expense" value={state.currentAnnualExpenses / 12} onChange={v=>updateState('currentAnnualExpenses', v * 12)} icon={CreditCard} iconColor="text-rose-500" prefix="₹" tooltip="Excluding Loan EMIs" />
                     </div>
                     <SliderInput label="Salary Growth (Yearly)" value={state.salaryGrowth} onChange={v=>updateState('salaryGrowth',v)} max={20} step={1} icon={TrendingUp} />
                  </div>
@@ -79,14 +145,15 @@ export const InputSection = ({
                         />
                     </div>
 
+                    {/* SIMPLE BUDGET WARNING */}
                     {isOverBudget && (
                         <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
                             <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
                             <div>
-                                <p className="text-xs font-bold text-amber-300 mb-0.5">Budget Alert</p>
+                                <p className="text-xs font-bold text-amber-300 mb-0.5">Budget Deficit</p>
                                 <p className="text-[11px] text-amber-200/70 leading-relaxed">
-                                    Your Total SIP ({formatCompact(totalSIP)}) exceeds your calculated surplus ({formatCompact(availableSurplus)}). 
-                                    <br/>The calculator will use your input values, but this may not be realistic.
+                                    Your expenses & SIPs exceed your income by <strong>{formatCompact(Math.abs(netSurplus))}</strong>. 
+                                    <br/>The calculator will use these values, but your plan may be unrealistic.
                                 </p>
                             </div>
                         </div>
@@ -102,7 +169,7 @@ export const InputSection = ({
               </div>
            </CollapsibleSection>
 
-           {/* CURRENT ASSETS */}
+           {/* 2. CURRENT ASSETS */}
            <CollapsibleSection title="Current Assets" icon={Trees} color="text-emerald-500" defaultOpen={false} rightContent={formatCompact(totalNetWorth)}>
               <div className="space-y-4">
                  <div className="p-3 bg-white/5 rounded-xl border border-white/5">
@@ -173,8 +240,7 @@ export const InputSection = ({
               </div>
            </CollapsibleSection>
 
-           {/* LOANS & LIABILITIES (Safe Map) */}
-           {/* LOANS & LIABILITIES */}
+           {/* 3. LOANS & LIABILITIES (Polished UI) */}
            <CollapsibleSection title="Loans & Liabilities" icon={Landmark} color="text-rose-500" defaultOpen={false}>
               <div className="space-y-4">
                  <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
@@ -242,7 +308,7 @@ export const InputSection = ({
               </div>
            </CollapsibleSection>
 
-           {/* RETIREMENT TARGET */}
+           {/* 4. RETIREMENT TARGET */}
            <CollapsibleSection title="Retirement Target" icon={Star} color="text-amber-400" defaultOpen={false}>
               <div className="grid grid-cols-3 gap-2 mb-4">
                  <SmartInput label="Age Now" value={state.currentAge} onChange={v=>updateState('currentAge',v)} />
@@ -252,6 +318,7 @@ export const InputSection = ({
               <SmartInput label="Target Retirement Spend (Annual)" value={state.retirementAnnualExpenses} onChange={v=>updateState('retirementAnnualExpenses',v)} icon={CreditCard} iconColor="text-rose-400" prefix="₹" tooltip="How much will you spend annually in retirement (in today's value)?" />
               
               <div className="mt-4 pt-4 border-t border-white/5">
+                  {/* STRESS TEST TOGGLE */}
                   <div className="flex justify-between items-start">
                      <div className="flex items-start gap-3">
                         <div className="bg-rose-500/20 p-2 rounded-lg text-rose-400 mt-1">
@@ -275,6 +342,7 @@ export const InputSection = ({
                      </label>
                   </div>
                   
+                  {/* STRESS TEST BLUEPRINT */}
                   {state.stressTest && (
                      <div className="mt-4 bg-slate-950/50 border border-rose-500/20 p-3 rounded-lg space-y-2 animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-center gap-2 mb-1">
@@ -292,7 +360,7 @@ export const InputSection = ({
               </div>
            </CollapsibleSection>
 
-           {/* ASSUMPTIONS */}
+           {/* 5. ASSUMPTIONS */}
            <CollapsibleSection title="Assumptions & Returns" icon={Snowflake} color="text-white" defaultOpen={false}>
               <div className="space-y-6">
                  <div className="grid grid-cols-2 gap-x-4 gap-y-6">
@@ -300,6 +368,7 @@ export const InputSection = ({
                     <SliderInput label="Stable Return" value={state.stableReturn} onChange={v=>updateState('stableReturn',v)} min={4} max={10} />
                  </div>
                  
+                 {/* TAX HARVESTING TOGGLE */}
                  <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                     <div className="flex justify-between items-start">
                         <div className="flex items-start gap-3">
@@ -324,6 +393,7 @@ export const InputSection = ({
                         </label>
                     </div>
                     
+                    {/* HARVESTING BLUEPRINT */}
                     {state.taxHarvesting && results?.harvestingBonusWealth > 0 && (
                         <div className="mt-4 pt-3 border-t border-emerald-500/20 animate-in fade-in slide-in-from-top-2">
                             <div className="flex justify-between items-end mb-2">
@@ -353,10 +423,10 @@ export const InputSection = ({
                     )}
                  </div>
 
-                 {state.customAssets?.length > 0 && (
+                 {customAssets.length > 0 && (
                      <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800 space-y-4">
                         <p className="text-[10px] font-bold uppercase text-amber-400">Alternative Asset Growth</p>
-                        {state.customAssets.map(asset => (
+                        {customAssets.map(asset => (
                             <div key={asset.id} className="space-y-2">
                                 <p className="text-xs text-slate-300 font-bold">{asset.name || "Unnamed Asset"}</p>
                                 <div className="grid grid-cols-2 gap-4">
