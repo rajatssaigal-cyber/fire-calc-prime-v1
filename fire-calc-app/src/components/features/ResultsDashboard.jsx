@@ -7,14 +7,13 @@ import {
 } from "lucide-react";
 import { Card } from '../ui/Card';
 import { formatCompact, formatINR } from '../../utils/formatters';
-import { LifeEventsList } from './LifeEventsList'; // We will create this next
+import { LifeEventsList } from './LifeEventsList';
 import { DetailedTable } from './DetailedTable.jsx';
 
 export const ResultsDashboard = ({ 
   results, state, hasData, netCashflow, monthlyIncome, monthlyExpenses, totalSIP, 
   showRealValue, setShowRealValue, addEvent, updateEvent, toggleEventType, removeEvent 
 }) => {
-  const isSurplus = netCashflow >= 0;
   
   if (!hasData) return (
      <div className="flex flex-col items-center justify-center h-[500px] p-8 bg-zinc-900/30 rounded-3xl border border-white/5 text-center backdrop-blur-sm animate-in fade-in duration-700">
@@ -35,44 +34,8 @@ export const ResultsDashboard = ({
 
   return (
     <div className="space-y-6">
-       <Card className="p-5 border-l-4 border-l-emerald-500 relative overflow-hidden bg-gradient-to-r from-slate-900 to-slate-900/50" glow={isSurplus ? "green" : "red"}>
-           <div className="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                 <div className={`p-3 rounded-full ${isSurplus ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                    {isSurplus ? <CheckCircle2 size={24}/> : <AlertTriangle size={24}/>}
-                 </div>
-                 <div>
-                    <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Cashflow Reality Check</h3>
-                    <p className="text-xs text-slate-400 mt-1">
-                       {isSurplus 
-                          ? <span>You have a healthy surplus of <span className="text-green-400 font-bold">{formatCompact(netCashflow)}/mo</span></span>
-                          : <span>You are running a deficit of <span className="text-red-400 font-bold">{formatCompact(Math.abs(netCashflow))}/mo</span></span>}
-                    </p>
-                 </div>
-              </div>
-              <div className="flex items-center gap-3 text-xs font-mono bg-black/40 p-3 rounded-xl border border-white/5 w-full md:w-auto justify-center shadow-inner">
-                  <div className="text-center">
-                      <div className="text-slate-500 text-[9px] uppercase mb-1">Income</div>
-                      <div className="text-green-400 font-bold">{formatCompact(monthlyIncome)}</div>
-                  </div>
-                  <div className="text-slate-600">-</div>
-                  <div className="text-center">
-                      <div className="text-slate-500 text-[9px] uppercase mb-1">Spend</div>
-                      <div className="text-rose-400 font-bold">{formatCompact(monthlyExpenses)}</div>
-                  </div>
-                  <div className="text-slate-600">-</div>
-                  <div className="text-center">
-                      <div className="text-slate-500 text-[9px] uppercase mb-1">SIP</div>
-                      <div className="text-amber-400 font-bold">{formatCompact(totalSIP)}</div>
-                  </div>
-                  <ArrowRight size={14} className="text-slate-600 mx-1"/>
-                  <div className="text-center">
-                      <div className="text-slate-500 text-[9px] uppercase mb-1">Net</div>
-                      <div className={`font-bold ${isSurplus ? 'text-white' : 'text-red-500'}`}>{formatCompact(Math.abs(netCashflow))}</div>
-                  </div>
-              </div>
-           </div>
-       </Card>
+       
+       {/* --- DUPLICATE BANNER REMOVED FROM HERE --- */}
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
          <Card className="p-6 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.gap > 0 ? "red" : "green"}>
@@ -226,8 +189,7 @@ export const ResultsDashboard = ({
        </Card>
 
        <LifeEventsList state={state} addEvent={addEvent} updateEvent={updateEvent} toggleEventType={toggleEventType} removeEvent={removeEvent} />
-      {/* NEW TABLE */}
-<DetailedTable projection={results?.projection} targetRetirementAge={state.targetRetirementAge} />
+       <DetailedTable projection={results?.projection} targetRetirementAge={state.targetRetirementAge} />
     </div>
   );
 };
