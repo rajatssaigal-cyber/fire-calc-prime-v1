@@ -1,20 +1,19 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, BarChart3 } from "lucide-react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, BarChart3, ShieldCheck, AlertTriangle, TrendingUp, FileText } from "lucide-react";
 
 // --- IMPORTS ---
 import { calculateProjection } from './utils/fireMath';
-import { sanitizeCSV } from './utils/formatters';
+import { sanitizeCSV, formatCompact } from './utils/formatters'; // Added formatCompact
 import { SEOManager } from './components/SEOManager';
 import { Snowfall } from './components/ui/Snowfall';
 import { MethodologyTab } from './components/docs/MethodologyTab';
 import { generatePDFReport } from './utils/pdfGenerator';
-import { FileText } from "lucide-react";
 
 // --- FEATURE SECTIONS ---
 import { InputSection } from './components/features/InputSection';
 import { ResultsDashboard } from './components/features/ResultsDashboard';
 import { ScenarioTabs } from './components/features/ScenarioTabs';
-import { CompareTab } from './components/features/CompareTab'; // NEW IMPORT
+import { CompareTab } from './components/features/CompareTab';
 
 const DEFAULT_STATE = {
   scenarioName: "Base Plan",
@@ -36,12 +35,13 @@ const DEFAULT_STATE = {
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
-  
+  const fileInputRef = useRef(null); // Added ref for file inputs
+   
   // --- 1. STATE DEFINITIONS ---
   const [scenarios, setScenarios] = useState({ "default": DEFAULT_STATE });
   const [activeScenarioId, setActiveScenarioId] = useState("default");
   const [showRealValue, setShowRealValue] = useState(false);
-  
+   
   // --- 2. DERIVED STATE ---
   const state = scenarios[activeScenarioId] || DEFAULT_STATE; 
   const [debouncedState, setDebouncedState] = useState(DEFAULT_STATE);
@@ -55,7 +55,6 @@ export default function FireCalcPro() {
             setScenarios(parsed.scenarios);
             setActiveScenarioId(parsed.activeId);
         } else {
-            // Migrating old data if exists
             const oldData = localStorage.getItem("fireCalcData_v15.3");
             if (oldData) {
                 setScenarios({ "default": { ...JSON.parse(oldData), scenarioName: "My First Plan" } });
@@ -84,7 +83,7 @@ export default function FireCalcPro() {
     const newName = `Scenario ${Object.keys(scenarios).length + 1}`;
     setScenarios(prev => ({
         ...prev,
-        [newId]: { ...state, scenarioName: newName } // Clone current state
+        [newId]: { ...state, scenarioName: newName }
     }));
     setActiveScenarioId(newId);
   };
@@ -122,7 +121,7 @@ export default function FireCalcPro() {
           }
       }));
   }, [activeScenarioId]);
-  
+   
   const addCustomAsset = () => {
       setScenarios(prev => {
         const curr = prev[activeScenarioId];
@@ -156,11 +155,10 @@ export default function FireCalcPro() {
       });
   };
 
-// LIABILITY HANDLERS (Safe Version)
+  // LIABILITY HANDLERS (Safe Version)
   const addLiability = () => {
     setScenarios(prev => {
       const currentScenario = prev[activeScenarioId];
-      // Safety Check: Ensure the array exists before trying to add to it
       const existingLiabilities = currentScenario.liabilities || [];
       
       return {
@@ -168,7 +166,7 @@ export default function FireCalcPro() {
         [activeScenarioId]: {
           ...currentScenario,
           liabilities: [
-            ...existingLiabilities, // Now safe even if undefined
+            ...existingLiabilities, 
             { 
               id: Date.now(), 
               name: 'Home Loan', 
@@ -213,7 +211,7 @@ export default function FireCalcPro() {
       };
     });
   };
-  
+   
   const updateEvents = (fn) => {
       setScenarios(prev => {
           const curr = prev[activeScenarioId];
@@ -230,10 +228,8 @@ export default function FireCalcPro() {
       if(window.confirm("Reset current scenario to default?")) {
           setScenarios(prev => ({
               ...prev,
-              // Overwrite the ACTIVE scenario with DEFAULT_STATE
               [activeScenarioId]: { 
                   ...DEFAULT_STATE, 
-                  // ...but keep the current name so the tab doesn't change
                   scenarioName: prev[activeScenarioId].scenarioName 
               }
           }));
@@ -247,17 +243,34 @@ export default function FireCalcPro() {
     return calculateProjection(debouncedState);
   }, [debouncedState, isLoaded, state]);
 
-  // Derived Metrics
+  // ==========================================
+  // 7. DERIVED METRICS (FIXED LOGIC)
+  // ==========================================
+  
+  // Assets
   const totalEquity = state ? Object.values(state.equityAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalStable = state ? Object.values(state.stableAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalCustom = state ? state.customAssets.reduce((a, b) => a + (b.value || 0), 0) : 0;
-  const totalNetWorth = totalEquity + totalStable + totalCustom + (state?.emergencyFund || 0);
-  const monthlyIncome = state ? state.annualIncome / 12 : 0;
-  const monthlyExpenses = state ? state.currentAnnualExpenses / 12 : 0;
-  const totalSIP = state ? state.monthlySIP.equity + state.monthlySIP.stable : 0;
-  const netCashflow = monthlyIncome - monthlyExpenses - totalSIP;
-  const emergencyCoverageMonths = monthlyExpenses > 0 ? (state.emergencyFund / monthlyExpenses).toFixed(1) : "N/A";
   
+  // Liabilities (Debt & EMI) -- ADDED THIS
+  const liabilities = state?.liabilities || [];
+  const totalDebt = liabilities.reduce((a, b) => a + (parseFloat(b.outstandingAmount) || 0), 0);
+  const totalEMI = liabilities.reduce((a, b) => a + (parseFloat(b.monthlyEMI) || 0), 0);
+
+  // Net Worth (Assets - Debt) -- FIXED THIS
+  const totalNetWorth = totalEquity + totalStable + totalCustom + (state?.emergencyFund || 0) - totalDebt;
+
+  // Cashflow -- FIXED THIS
+  const monthlyIncome = state ? state.annualIncome / 12 : 0;
+  const monthlyBaseExpenses = state ? state.currentAnnualExpenses / 12 : 0;
+  const totalMonthlySpend = monthlyBaseExpenses + totalEMI; // Include EMI in spend
+  const totalSIP = state ? state.monthlySIP.equity + state.monthlySIP.stable : 0;
+  const netCashflow = monthlyIncome - totalMonthlySpend - totalSIP;
+
+  // Future Unlock
+  const maxLoanAge = liabilities.reduce((max, l) => Math.max(max, l.endAge || 0), 0);
+  const emergencyCoverageMonths = totalMonthlySpend > 0 ? (state.emergencyFund / totalMonthlySpend).toFixed(1) : "N/A";
+   
   const hasData = useMemo(() => {
     if(!state) return false;
     return (state.annualIncome > 0 || state.currentAnnualExpenses > 0 || totalNetWorth > 0 || (state.monthlySIP.equity + state.monthlySIP.stable) > 0);
@@ -295,7 +308,6 @@ export default function FireCalcPro() {
              <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-slate-800 text-white shadow-lg shadow-black/50' : 'text-slate-400 hover:text-slate-200'}`}>
                 <Calculator size={14} /> Calculator
              </button>
-             {/* NEW COMPARE BUTTON */}
              <button onClick={() => setActiveTab('compare')} className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'compare' ? 'bg-slate-800 text-white shadow-lg shadow-black/50' : 'text-slate-400 hover:text-slate-200'}`}>
                 <BarChart3 size={14} /> Compare
              </button>
@@ -305,7 +317,6 @@ export default function FireCalcPro() {
           </div>
 
           <div className="flex gap-2">
-            {/* CSV Download */}
             <button 
                 onClick={handleDownload} 
                 className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
@@ -314,7 +325,6 @@ export default function FireCalcPro() {
                 <Download size={18}/>
             </button>
 
-            {/* PDF Report (NEW) */}
             <button 
                 onClick={() => generatePDFReport(state, results)} 
                 className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
@@ -346,58 +356,111 @@ export default function FireCalcPro() {
               <CompareTab scenarios={scenarios} />
           </main>
       ) : (
-      <main className="max-w-7xl mx-auto p-4 md:p-8 pb-40 lg:pb-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500 relative z-10">
+      <main className="max-w-7xl mx-auto p-4 md:p-8 pb-40 lg:pb-8 animate-in fade-in duration-500 relative z-10">
         
-        {/* SCENARIO TABS */}
-        <div className="col-span-1 lg:col-span-12">
-            <ScenarioTabs 
-                scenarios={scenarios} 
-                activeId={activeScenarioId} 
-                onSwitch={setActiveScenarioId} 
-                onAdd={handleAddScenario}
-                onDelete={handleDeleteScenario}
-                onRename={handleRenameScenario}
-            />
-        </div>
+        {/* --- ADDED: CASHFLOW REALITY CHECK BANNER --- */}
+        <div className={`mb-8 p-4 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg transition-all ${netCashflow >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+            <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-full ${netCashflow >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                    {netCashflow >= 0 ? <ShieldCheck size={24} /> : <AlertTriangle size={24} />}
+                </div>
+                <div>
+                    <h3 className={`font-bold text-sm uppercase tracking-wider ${netCashflow >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {netCashflow >= 0 ? 'Cashflow Healthy' : 'Cashflow Alert'}
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-1">
+                        You have a surplus of <strong className={netCashflow >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(netCashflow)}/mo</strong> right now.
+                    </p>
+                    
+                    {/* FUTURE UNLOCK MESSAGE */}
+                    {totalEMI > 0 && maxLoanAge > state.currentAge && (
+                        <div className="mt-2 flex items-center gap-2 text-[10px] bg-slate-900/40 py-1 px-2 rounded-lg border border-white/5 w-fit">
+                            <TrendingUp size={12} className="text-emerald-400" />
+                            <span className="text-slate-400">
+                                Surplus jumps by <strong className="text-emerald-300">+{formatCompact(totalEMI)}</strong> at Age {maxLoanAge} (Debt Free)
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
 
-        {/* LEFT COLUMN: INPUTS */}
-        <div className="lg:col-span-4">
-            <InputSection 
-                state={state}
-                updateState={updateState}
-                updateNested={updateNested}
-                addCustomAsset={addCustomAsset}
-                updateCustomAsset={updateCustomAsset}
-                removeCustomAsset={removeCustomAsset}
-                addLiability={addLiability}
-                updateLiability={updateLiability}
-                removeLiability={removeLiability}
-                results={results}
-                totalNetWorth={totalNetWorth}
-                totalEquity={totalEquity}
-                totalStable={totalStable}
-                totalCustom={totalCustom}
-                emergencyCoverageMonths={emergencyCoverageMonths}
-            />
+            {/* MINI BREAKDOWN TABLE */}
+            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center gap-3 text-xs">
+                <div className="text-center">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Income</p>
+                    <p className="font-mono font-bold text-emerald-400">{formatCompact(monthlyIncome)}</p>
+                </div>
+                <span className="text-slate-600 font-bold">-</span>
+                <div className="text-center">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Spend<span className="text-rose-500">*</span></p>
+                    <p className="font-mono font-bold text-rose-400">{formatCompact(totalMonthlySpend)}</p>
+                </div>
+                <span className="text-slate-600 font-bold">-</span>
+                <div className="text-center">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">SIP</p>
+                    <p className="font-mono font-bold text-amber-400">{formatCompact(totalSIP)}</p>
+                </div>
+                <span className="text-slate-600 font-bold">=</span>
+                <div className="text-center">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Net</p>
+                    <p className={`font-mono font-bold ${netCashflow >= 0 ? 'text-white' : 'text-rose-500'}`}>{formatCompact(netCashflow)}</p>
+                </div>
+            </div>
         </div>
+        {/* --- END BANNER --- */}
 
-        {/* RIGHT COLUMN: DASHBOARD */}
-        <div className="lg:col-span-8">
-            <ResultsDashboard 
-                results={results}
-                state={state}
-                hasData={hasData}
-                netCashflow={netCashflow}
-                monthlyIncome={monthlyIncome}
-                monthlyExpenses={monthlyExpenses}
-                totalSIP={totalSIP}
-                showRealValue={showRealValue}
-                setShowRealValue={setShowRealValue}
-                addEvent={addEvent}
-                updateEvent={updateEvent}
-                toggleEventType={toggleEventType}
-                removeEvent={removeEvent}
-            />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* SCENARIO TABS */}
+            <div className="col-span-1 lg:col-span-12">
+                <ScenarioTabs 
+                    scenarios={scenarios} 
+                    activeId={activeScenarioId} 
+                    onSwitch={setActiveScenarioId} 
+                    onAdd={handleAddScenario}
+                    onDelete={handleDeleteScenario}
+                    onRename={handleRenameScenario}
+                />
+            </div>
+
+            {/* LEFT COLUMN: INPUTS */}
+            <div className="lg:col-span-4">
+                <InputSection 
+                    state={state}
+                    updateState={updateState}
+                    updateNested={updateNested}
+                    addCustomAsset={addCustomAsset}
+                    updateCustomAsset={updateCustomAsset}
+                    removeCustomAsset={removeCustomAsset}
+                    addLiability={addLiability}
+                    updateLiability={updateLiability}
+                    removeLiability={removeLiability}
+                    results={results}
+                    totalNetWorth={totalNetWorth}
+                    totalEquity={totalEquity}
+                    totalStable={totalStable}
+                    totalCustom={totalCustom}
+                    emergencyCoverageMonths={emergencyCoverageMonths}
+                />
+            </div>
+
+            {/* RIGHT COLUMN: DASHBOARD */}
+            <div className="lg:col-span-8">
+                <ResultsDashboard 
+                    results={results}
+                    state={state}
+                    hasData={hasData}
+                    netCashflow={netCashflow}
+                    monthlyIncome={monthlyIncome}
+                    monthlyExpenses={monthlyExpenses} // Passed original base expenses for detail view
+                    totalSIP={totalSIP}
+                    showRealValue={showRealValue}
+                    setShowRealValue={setShowRealValue}
+                    addEvent={addEvent}
+                    updateEvent={updateEvent}
+                    toggleEventType={toggleEventType}
+                    removeEvent={removeEvent}
+                />
+            </div>
         </div>
       </main>
       )}
