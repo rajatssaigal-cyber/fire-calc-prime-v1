@@ -2,7 +2,7 @@ import React from 'react';
 import { 
     Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, 
     Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, 
-    Info, AlertTriangle, Sprout, TrendingDown 
+    AlertTriangle, Sprout, TrendingDown 
 } from "lucide-react";
 import { SmartInput } from '../ui/SmartInput';
 import { SliderInput } from '../ui/SliderInput';
@@ -27,26 +27,22 @@ export const InputSection = ({
     emergencyCoverageMonths 
 }) => {
   
-  // Safety checks for arrays (prevents crashes with old saves)
+  // Safety checks for arrays
   const liabilities = state.liabilities || [];
   const customAssets = state.customAssets || [];
 
-  // Calculate Real Cashflow for Budget Warning
+  // Local calculation just for the "Budget Deficit" warning box inside the form
   const monthlyIncome = state.annualIncome / 12;
   const monthlyBaseSpend = state.currentAnnualExpenses / 12;
   const totalEMI = liabilities.reduce((sum, l) => sum + (parseFloat(l.monthlyEMI) || 0), 0);
   const totalSpend = monthlyBaseSpend + totalEMI;
   const totalSIP = state.monthlySIP.equity + state.monthlySIP.stable;
   
-  // Net Surplus available
   const netSurplus = monthlyIncome - totalSpend - totalSIP;
-  
-  // Budget Warning Logic (+50 buffer)
   const isOverBudget = netSurplus < -50; 
 
   return (
     <div className="space-y-6">
-           
            
            {/* 1. CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
@@ -79,15 +75,14 @@ export const InputSection = ({
                         />
                     </div>
 
-                    {/* SIMPLE BUDGET WARNING (Fits nicely inside sidebar) */}
+                    {/* Local Budget Warning (Kept for context while typing) */}
                     {isOverBudget && (
                         <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
                             <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
                             <div>
                                 <p className="text-xs font-bold text-amber-300 mb-0.5">Budget Deficit</p>
                                 <p className="text-[11px] text-amber-200/70 leading-relaxed">
-                                    Your expenses & SIPs exceed your income by <strong>{formatCompact(Math.abs(netSurplus))}</strong>. 
-                                    <br/>The calculator will use these values, but your plan may be unrealistic.
+                                    Expenses exceed income by <strong>{formatCompact(Math.abs(netSurplus))}</strong>.
                                 </p>
                             </div>
                         </div>
@@ -145,7 +140,7 @@ export const InputSection = ({
                     </div>
                  </div>
 
-                 {/* CUSTOM ASSETS (Safe Map) */}
+                 {/* CUSTOM ASSETS */}
                  <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-3">
                        <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Alternatives</p>
@@ -174,7 +169,7 @@ export const InputSection = ({
               </div>
            </CollapsibleSection>
 
-           {/* 3. LOANS & LIABILITIES (Polished UI) */}
+           {/* 3. LOANS & LIABILITIES */}
            <CollapsibleSection title="Loans & Liabilities" icon={Landmark} color="text-rose-500" defaultOpen={false}>
               <div className="space-y-4">
                  <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
