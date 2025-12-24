@@ -31,8 +31,10 @@ export const calculateProjection = (state) => {
     const startStable = Object.values(s.stableAssets).reduce((a, b) => a + (b||0), 0);
     
     const doStressTest = s.stressTest === true;
+    const doTaxHarvesting = s.taxHarvesting === true; // <--- NEW FLAG
 
     // Rates
+    // We assume rEquityBase includes the Tax Drag. Harvesting will add it back.
     const rEquityBase = ((Math.min(s.equityReturn, 100)) * (1 - (s.taxEquity/100) * 0.75)) / 100; 
     const rStable = (Math.min(s.stableReturn, 100) * (1 - (s.taxStable/100))) / 100; 
     const effectiveInflation = Math.min(s.inflationRate, 50);
@@ -52,6 +54,7 @@ export const calculateProjection = (state) => {
     let curEmergency = s.emergencyFund;
     let emergencyCoverageFuture = 0;
     let bankruptcyAge = null;
+    let harvestingBonusWealth = 0; // <--- Tracks extra wealth from harvesting
 
     const data = [];
     let fireMonthIndex = -1, reached = false;
@@ -63,7 +66,6 @@ export const calculateProjection = (state) => {
 
     const monthlyIncomeGrowth = Math.pow(1 + s.salaryGrowth/100, 1/12) - 1;
     
-    // We only calculate this to help the UI show a warning. We do NOT use it to stop the math.
     let initialSurplus = 0; 
 
     // --- PROJECTION LOOP ---
@@ -72,14 +74,31 @@ export const calculateProjection = (state) => {
         const currentAge = s.currentAge + (m/12);
         const isYearStart = (m-1) % 12 === 0;
 
-        // 1. Dynamic Return
+        // 1. Dynamic Return (Stress Test)
         let currentEquityReturn = rEquityBase;
         if (doStressTest && isRetired && m <= monthsToRetire + 24) {
-             currentEquityReturn = -0.20; 
+             currentEquityReturn = -0.20; // Crash Logic
         }
         const mrEquity = Math.pow(1 + currentEquityReturn, 1/12) - 1;
 
-        // 2. Income & Expense (Delayed 1 month for UI accuracy)
+        // 2. Tax Harvesting Logic (Every March / Year Start)
+        // We add back the tax that was "dragged" down by rEquityBase for the exempt portion
+        if (isYearStart && !isRetired && curEquity > 0) {
+            const annualGain = curEquity * (s.equityReturn / 100);
+            const exemptLimit = 125000; // Fixed nominal limit
+            const harvestableGain = Math.min(annualGain, exemptLimit);
+            
+            // The 'Tax Saved' is effectively the return we DIDN'T lose to the tax drag
+            const taxSaved = harvestableGain * (s.taxEquity / 100);
+            
+            if (doTaxHarvesting) {
+                curEquity += taxSaved;
+            }
+            // Track bonus for UI
+            harvestingBonusWealth = (harvestingBonusWealth * (1 + s.equityReturn/100)) + taxSaved;
+        }
+
+        // 3. Income & Expense
         const monthIndex = m - 1; 
         
         let currentMonthIncomeVal = 0;
@@ -91,7 +110,6 @@ export const calculateProjection = (state) => {
         const annualExp = s.retirementAnnualExpenses * annualExpMultiplier; 
         const monthlyExp = annualExp / 12;
         
-        // Accurate Surplus Calculation for UI Warning
         const currentMonthExpenseVal = (s.currentAnnualExpenses / 12) * annualExpMultiplier;
         const targetCorpus = (annualExp / (Math.max(0.1, s.safeWithdrawalRate)/100));
 
@@ -112,7 +130,6 @@ export const calculateProjection = (state) => {
             });
         }
 
-        // Capture Initial Surplus for UI (Month 1 Only)
         if (m === 1) {
              initialSurplus = isRetired ? 0 : Math.max(0, currentMonthIncomeVal - currentMonthExpenseVal - monthlyRecurringOutflow - monthlyLiabilityOutflow);
         }
@@ -124,7 +141,7 @@ export const calculateProjection = (state) => {
             curSipStable *= stepMult;
         }
 
-        // 3. Emergency Fund Top-Up
+        // 4. Emergency Fund Top-Up
         const currentLivingExpense = isRetired ? monthlyExp : (s.currentAnnualExpenses/12 * annualExpMultiplier);
         const requiredEmergencyFund = (parseFloat(s.emergencyFund / (s.currentAnnualExpenses/12 || 1)) || 0) * currentLivingExpense;
         
@@ -134,18 +151,16 @@ export const calculateProjection = (state) => {
         if (curEmergency < requiredEmergencyFund) {
             const shortfall = requiredEmergencyFund - curEmergency;
             if (!isRetired) {
-                // Use UNCAPPED SIP amount
                 const totalAvailable = curSipEquity + curSipStable;
                 monthlyTopUp = Math.min(shortfall, totalAvailable);
                 curEmergency += monthlyTopUp;
             }
         }
 
-        // 4. Accumulation / Decumulation
+        // 5. Accumulation / Decumulation
         if (!isRetired) {
-            // ACCUMULATION
-            let sipToAddEquity = curSipEquity; // Use FULL User Input
-            let sipToAddStable = curSipStable; // Use FULL User Input
+            let sipToAddEquity = curSipEquity; 
+            let sipToAddStable = curSipStable;
 
             if (monthlyTopUp > 0) {
                 const totalAvailable = curSipEquity + curSipStable;
@@ -158,13 +173,7 @@ export const calculateProjection = (state) => {
 
             curEquity += sipToAddEquity;
             curStable += sipToAddStable;
-            
-            const liquidTotal = curEquity + curStable;
-            if (monthlyRecurringOutflow > 0 && liquidTotal > 0 && isRetired) {
-                 // Fallback
-            }
         } else {
-            // DECUMULATION
             const totalMonthlyOutflow = monthlyExp + monthlyRecurringOutflow;
             const liquidTotal = curEquity + curStable;
             
@@ -180,7 +189,7 @@ export const calculateProjection = (state) => {
             yearlyWithdrawal += totalMonthlyOutflow;
         }
 
-        // 5. Growth
+        // 6. Growth
         if (curEquity > 0) curEquity *= (1 + mrEquity);
         if (curStable > 0) curStable *= (1 + mrStable);
 
@@ -190,7 +199,7 @@ export const calculateProjection = (state) => {
             totalCustomVal += asset.currentVal;
         });
 
-        // 6. One-Time Events
+        // 7. One-Time Events
         const eventHit = oneTimeEvents.find(e => Math.abs(e.age - currentAge) < 0.05 && !e.processed);
         let eventCost = 0;
         if (eventHit) {
@@ -277,6 +286,7 @@ export const calculateProjection = (state) => {
         targetAtRetirement, 
         corpusAtRetirement,
         bankruptcyAge: bankruptcyAge ? bankruptcyAge.toFixed(1) : null,
-        initialSurplus // Passed for UI warning only
+        initialSurplus,
+        harvestingBonusWealth // <--- RETURN THE BONUS
     };
 };
