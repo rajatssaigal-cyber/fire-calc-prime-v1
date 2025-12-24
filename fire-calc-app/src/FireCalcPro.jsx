@@ -156,46 +156,62 @@ export default function FireCalcPro() {
       });
   };
 
-// LIABILITY HANDLERS
+// LIABILITY HANDLERS (Safe Version)
   const addLiability = () => {
-    setScenarios(prev => ({
-      ...prev,
-      [activeScenarioId]: {
-        ...prev[activeScenarioId],
-        liabilities: [
-          ...prev[activeScenarioId].liabilities,
-          { 
-            id: Date.now(), 
-            name: 'Home Loan', 
-            monthlyEMI: 30000, 
-            outstandingAmount: 2500000, 
-            endAge: prev[activeScenarioId].currentAge + 15 // Default 15 years tenure
-          }
-        ]
-      }
-    }));
+    setScenarios(prev => {
+      const currentScenario = prev[activeScenarioId];
+      // Safety Check: Ensure the array exists before trying to add to it
+      const existingLiabilities = currentScenario.liabilities || [];
+      
+      return {
+        ...prev,
+        [activeScenarioId]: {
+          ...currentScenario,
+          liabilities: [
+            ...existingLiabilities, // Now safe even if undefined
+            { 
+              id: Date.now(), 
+              name: 'Home Loan', 
+              monthlyEMI: 30000, 
+              outstandingAmount: 2500000, 
+              endAge: currentScenario.currentAge + 15 
+            }
+          ]
+        }
+      };
+    });
   };
 
   const updateLiability = (id, field, value) => {
-    setScenarios(prev => ({
-      ...prev,
-      [activeScenarioId]: {
-        ...prev[activeScenarioId],
-        liabilities: prev[activeScenarioId].liabilities.map(l => 
-          l.id === id ? { ...l, [field]: field === 'name' ? value : parseFloat(value) || 0 } : l
-        )
-      }
-    }));
+    setScenarios(prev => {
+      const currentScenario = prev[activeScenarioId];
+      const existingLiabilities = currentScenario.liabilities || [];
+
+      return {
+        ...prev,
+        [activeScenarioId]: {
+          ...currentScenario,
+          liabilities: existingLiabilities.map(l => 
+            l.id === id ? { ...l, [field]: field === 'name' ? value : parseFloat(value) || 0 } : l
+          )
+        }
+      };
+    });
   };
 
   const removeLiability = (id) => {
-    setScenarios(prev => ({
-      ...prev,
-      [activeScenarioId]: {
-        ...prev[activeScenarioId],
-        liabilities: prev[activeScenarioId].liabilities.filter(l => l.id !== id)
-      }
-    }));
+    setScenarios(prev => {
+      const currentScenario = prev[activeScenarioId];
+      const existingLiabilities = currentScenario.liabilities || [];
+
+      return {
+        ...prev,
+        [activeScenarioId]: {
+          ...currentScenario,
+          liabilities: existingLiabilities.filter(l => l.id !== id)
+        }
+      };
+    });
   };
   
   const updateEvents = (fn) => {
