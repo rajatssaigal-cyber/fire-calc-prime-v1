@@ -1,6 +1,6 @@
 // src/components/features/InputSection.jsx
 import React from 'react';
-import { Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, Info, AlertTriangle } from "lucide-react";
+import { Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, Trees, ShieldCheck, Umbrella, Landmark, Plus, Trash2, Star, Snowflake, Info, AlertTriangle, Sprout, TrendingDown } from "lucide-react";
 import { SmartInput } from '../ui/SmartInput';
 import { SliderInput } from '../ui/SliderInput';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
@@ -8,10 +8,9 @@ import { formatCompact, formatINR } from '../../utils/formatters';
 
 export const InputSection = ({ state, updateState, updateNested, addCustomAsset, updateCustomAsset, removeCustomAsset, results, totalNetWorth, totalEquity, totalStable, totalCustom, emergencyCoverageMonths }) => {
   
-  // Logic for the simple warning
   const totalSIP = state.monthlySIP.equity + state.monthlySIP.stable;
   const availableSurplus = results?.initialSurplus || 0;
-  // Use a +50 buffer for rounding errors
+  // +50 buffer
   const isOverBudget = totalSIP > (availableSurplus + 50);
 
   return (
@@ -60,7 +59,6 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
                         />
                     </div>
 
-                    {/* SIMPLE WARNING ONLY - NO FUNCTIONAL IMPACT */}
                     {isOverBudget && (
                         <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
                             <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
@@ -126,7 +124,6 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
                     </div>
                  </div>
 
-                 {/* CUSTOM ASSETS */}
                  <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-3">
                        <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Alternatives</p>
@@ -164,17 +161,46 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
               </div>
               <SmartInput label="Target Retirement Spend (Annual)" value={state.retirementAnnualExpenses} onChange={v=>updateState('retirementAnnualExpenses',v)} icon={CreditCard} iconColor="text-rose-400" prefix="₹" tooltip="How much will you spend annually in retirement (in today's value)?" />
               
+              {/* STRESS TEST TOGGLE + BLUEPRINT */}
               <div className="mt-4 pt-4 border-t border-white/5">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                      <div className={`w-10 h-6 rounded-full p-1 transition-colors ${state.stressTest ? 'bg-rose-500' : 'bg-slate-700'}`}>
-                          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.stressTest ? 'translate-x-4' : 'translate-x-0'}`}></div>
-                      </div>
-                      <input type="checkbox" className="hidden" checked={state.stressTest || false} onChange={(e) => updateState('stressTest', e.target.checked)} />
-                      <div>
-                          <span className={`text-xs font-bold transition-colors ${state.stressTest ? 'text-rose-400' : 'text-slate-400'}`}>Simulate Market Crash?</span>
-                          <p className="text-[10px] text-slate-500">Applies -20% return for first 2 years of retirement.</p>
-                      </div>
-                  </label>
+                  <div className="flex justify-between items-start">
+                     <div className="flex items-start gap-3">
+                        <div className="bg-rose-500/20 p-2 rounded-lg text-rose-400 mt-1">
+                            <TrendingDown size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-rose-300">Simulate Market Crash</p>
+                            <p className="text-[10px] text-rose-200/60 leading-tight mt-1 max-w-[200px]">
+                                Stress test your plan against a severe market downturn right at retirement.
+                            </p>
+                        </div>
+                     </div>
+                     <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={state.stressTest || false} 
+                            onChange={(e) => updateState('stressTest', e.target.checked)} 
+                        />
+                        <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-500"></div>
+                     </label>
+                  </div>
+                  
+                  {/* STRESS TEST BLUEPRINT */}
+                  {state.stressTest && (
+                     <div className="mt-4 bg-slate-950/50 border border-rose-500/20 p-3 rounded-lg space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2 mb-1">
+                            <AlertCircle size={12} className="text-rose-500"/>
+                            <p className="text-[10px] font-bold text-rose-400 uppercase">Scenario: Sequence Risk</p>
+                        </div>
+                        <div className="grid grid-cols-[auto_1fr] gap-2 items-center">
+                            <div className="w-1 h-8 bg-gradient-to-b from-rose-500 to-transparent rounded-full"></div>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                                The engine is simulating a <strong className="text-white">-20% crash</strong> for the first 24 months of your retirement, followed by normal returns.
+                            </p>
+                        </div>
+                     </div>
+                  )}
               </div>
            </CollapsibleSection>
 
@@ -186,6 +212,61 @@ export const InputSection = ({ state, updateState, updateNested, addCustomAsset,
                     <SliderInput label="Stable Return" value={state.stableReturn} onChange={v=>updateState('stableReturn',v)} min={4} max={10} />
                  </div>
                  
+                 {/* TAX HARVESTING TOGGLE + BLUEPRINT */}
+                 <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-start gap-3">
+                            <div className="bg-emerald-500/20 p-2 rounded-lg text-emerald-400 mt-1">
+                                <Sprout size={18} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-emerald-300">Smart Tax Harvesting</p>
+                                <p className="text-[10px] text-emerald-200/60 leading-tight mt-1 max-w-[200px]">
+                                    Simulate booking ₹1.25L profit every year to pay ₹0 tax and reinvesting the savings.
+                                </p>
+                            </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                className="sr-only peer" 
+                                checked={state.taxHarvesting || false}
+                                onChange={(e) => updateState('taxHarvesting', e.target.checked)}
+                            />
+                            <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                    
+                    {/* BLUEPRINT CARD: Only show if ON */}
+                    {state.taxHarvesting && results?.harvestingBonusWealth > 0 && (
+                        <div className="mt-4 pt-3 border-t border-emerald-500/20 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex justify-between items-end mb-2">
+                                <p className="text-[10px] uppercase font-bold text-emerald-400/70 tracking-widest">Projected Impact</p>
+                                <p className="text-lg font-bold text-emerald-300">+{formatCompact(results.harvestingBonusWealth)}</p>
+                            </div>
+                            
+                            <div className="bg-slate-950/50 p-3 rounded-lg space-y-2 border border-emerald-500/10">
+                                <p className="text-[10px] font-bold text-white uppercase mb-1">Execution Blueprint</p>
+                                <div className="flex gap-2 items-center">
+                                    <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">1</div>
+                                    <p className="text-[11px] text-slate-300">Every <strong className="text-white">March</strong>, check your portfolio gains.</p>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">2</div>
+                                    <p className="text-[11px] text-slate-300">Sell units with <strong className="text-white">₹1.25 Lakh</strong> profit (LTCG).</p>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">3</div>
+                                    <p className="text-[11px] text-slate-300">Buy them back <strong className="text-white">immediately</strong> (next day).</p>
+                                </div>
+                                <p className="text-[10px] text-emerald-400/60 italic mt-1 pl-7">
+                                    * This resets your "Buy Price" higher, saving tax on future withdrawals.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                 </div>
+
                  {state.customAssets.length > 0 && (
                      <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800 space-y-4">
                         <p className="text-[10px] font-bold uppercase text-amber-400">Alternative Asset Growth</p>
