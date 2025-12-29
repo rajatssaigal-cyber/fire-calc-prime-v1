@@ -8,7 +8,7 @@ export const UserGuideModal = () => {
     return (
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-slate-900 border border-emerald-500/30 rounded-full shadow-2xl hover:bg-slate-800 hover:scale-105 transition-all group"
+        className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-3 bg-slate-900 border border-emerald-500/30 rounded-full shadow-2xl hover:bg-slate-800 hover:scale-105 transition-all group"
       >
         <div className="bg-emerald-500/20 p-1 rounded-full">
             <HelpCircle size={18} className="text-emerald-400 group-hover:rotate-12 transition-transform"/>
