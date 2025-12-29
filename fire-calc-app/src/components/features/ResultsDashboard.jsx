@@ -3,7 +3,7 @@ import {
   Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart, Bar 
 } from "recharts";
 import { 
-  CheckCircle2, AlertTriangle, ArrowRight, Eye, EyeOff, Skull, Banknote, Clock, Scissors, Calculator 
+  CheckCircle2, AlertTriangle, ArrowRight, Eye, EyeOff, Skull, Banknote, Clock, Scissors, Calculator, HelpCircle 
 } from "lucide-react";
 import { Card } from '../ui/Card';
 import { formatCompact, formatINR } from '../../utils/formatters';
