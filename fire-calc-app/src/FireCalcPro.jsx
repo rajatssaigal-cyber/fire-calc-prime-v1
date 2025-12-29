@@ -235,7 +235,27 @@ export default function FireCalcPro() {
           }));
       }
   };
-  const handleClear = () => { if(window.confirm("Clear all data in this scenario?")) updateState({ ...DEFAULT_STATE, scenarioName: state.scenarioName, annualIncome: 0, currentAnnualExpenses: 0, equityAssets: {}, stableAssets: {} }); };
+
+const handleClear = () => {
+    if(window.confirm("Clear all data in this scenario?")) {
+        setScenarios(prev => ({
+            ...prev,
+            [activeScenarioId]: {
+                ...DEFAULT_STATE, // Reset structure
+                scenarioName: prev[activeScenarioId].scenarioName, // Keep the name
+                // Explicitly zero out all financial data
+                annualIncome: 0,
+                currentAnnualExpenses: 0,
+                equityAssets: { mutualFunds: 0, stocks: 0 },
+                stableAssets: { epf: 0, ppf: 0, nps: 0, gold: 0, cash: 0 },
+                customAssets: [],
+                liabilities: [],
+                emergencyFund: 0,
+                monthlySIP: { equity: 0, stable: 0 }
+            }
+        }));
+    }
+};
 
   // --- 6. ENGINE CALL ---
   const results = useMemo(() => {
