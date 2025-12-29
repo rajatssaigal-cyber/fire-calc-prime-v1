@@ -14,6 +14,7 @@ import { InputSection } from './components/features/InputSection';
 import { ResultsDashboard } from './components/features/ResultsDashboard';
 import { ScenarioTabs } from './components/features/ScenarioTabs';
 import { CompareTab } from './components/features/CompareTab';
+import { UserGuideModal } from './components/features/UserGuideModal';
 
 const DEFAULT_STATE = {
   scenarioName: "Base Plan",
@@ -530,6 +531,7 @@ const handleClear = () => {
           </div>
       </div>
       )}
+      <UserGuideModal />
     </div>
   );
 }
