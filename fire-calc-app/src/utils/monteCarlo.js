@@ -17,9 +17,9 @@ const plotRandomNormal = (mean, stdDev) => {
     return mean + (stdDev * standardNormal);
 };
 
-export const runMonteCarloSimulation = (baseState, iterations = 500) => {
+export const runMonteCarloSimulation = (baseState, iterations = 10000) => {
     let successCount = 0;
-    const finalCorpusValues = [];
+    const finalCorpusValues = new Float64Array(iterations);
     const retirementCorpusValues = [];
 
     for (let i = 0; i < iterations; i++) {
@@ -43,27 +43,26 @@ export const runMonteCarloSimulation = (baseState, iterations = 500) => {
             successCount++;
         }
 
-        // Store key outcomes for percentile calculation
-        retirementCorpusValues.push(result.corpusAtRetirement);
+    
         const finalBalance = result.projection[result.projection.length - 1]?.balance || 0;
-        finalCorpusValues.push(finalBalance);
+        finalCorpusValues[i] = finalBalance;
     }
 
     // Helper to find percentiles (e.g., median is 50th percentile)
     const getPercentile = (arr, p) => {
         if (arr.length === 0) return 0;
-        const sorted = [...arr].sort((a, b) => a - b);
-        const index = Math.floor((p / 100) * sorted.length);
-        return sorted[Math.min(index, sorted.length - 1)];
+        // Sorting TypedArray is fast
+        arr.sort(); 
+        const index = Math.floor((p / 100) * arr.length);
+        return arr[Math.min(index, arr.length - 1)];
     };
 
     const successRate = (successCount / iterations) * 100;
 
     return {
-        successRate,
+        successRate: (successCount / iterations) * 100,
         iterations,
-        medianRetirementCorpus: getPercentile(retirementCorpusValues, 50),
         medianFinalCorpus: getPercentile(finalCorpusValues, 50),
-        worstCaseFinalCorpus: getPercentile(finalCorpusValues, 10) // 10th percentile outcome
+        worstCaseFinalCorpus: getPercentile(finalCorpusValues, 10)
     };
 };
