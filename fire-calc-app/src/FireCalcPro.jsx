@@ -3,7 +3,8 @@ import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, BarChart3
 
 // --- IMPORTS ---
 import { calculateProjection } from './utils/fireMath';
-import { sanitizeCSV, formatCompact } from './utils/formatters'; // Added formatCompact
+import { runMonteCarloSimulation } from './utils/monteCarlo'; // <--- ADDED BACK
+import { sanitizeCSV, formatCompact } from './utils/formatters';
 import { SEOManager } from './components/SEOManager';
 import { Snowfall } from './components/ui/Snowfall';
 import { MethodologyTab } from './components/docs/MethodologyTab';
@@ -11,8 +12,8 @@ import { generatePDFReport } from './utils/pdfGenerator';
 
 // --- FEATURE SECTIONS ---
 import { InputSection } from './components/features/InputSection';
-import { ResultsDashboard } from './components/features/ResultsDashboard';
-import { ScenarioTabs } from './components/features/ScenarioTabs';
+import { ResultsDashboard } from './components/features/ResultsDashboard'; // Ensure file name matches
+import { ScenarioTabs } from './components/features/ScenarioTabs'; // Ensure file name matches
 import { CompareTab } from './components/features/CompareTab';
 import { UserGuideModal } from './components/features/UserGuideModal';
 
@@ -36,7 +37,7 @@ const DEFAULT_STATE = {
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
-  const fileInputRef = useRef(null); // Added ref for file inputs
+  const fileInputRef = useRef(null);
    
   // --- 1. STATE DEFINITIONS ---
   const [scenarios, setScenarios] = useState({ "default": DEFAULT_STATE });
@@ -237,7 +238,7 @@ export default function FireCalcPro() {
       }
   };
 
-const handleClear = () => {
+  const handleClear = () => {
     if(window.confirm("Clear all data in this scenario?")) {
         setScenarios(prev => ({
             ...prev,
@@ -256,13 +257,42 @@ const handleClear = () => {
             }
         }));
     }
-};
+  };
 
   // --- 6. ENGINE CALL ---
+  // ==========================================
+  // 6. ENGINE CALL (WITH MONTE CARLO INTEGRATION)
+  // ==========================================
+  const totalNetWorthForCalc = useMemo(() => {
+     if (!debouncedState) return 0;
+     const eq = Object.values(debouncedState.equityAssets || {}).reduce((a, b) => a + (b || 0), 0);
+     const st = Object.values(debouncedState.stableAssets || {}).reduce((a, b) => a + (b || 0), 0);
+     const cust = (debouncedState.customAssets || []).reduce((a, b) => a + (b.value || 0), 0);
+     const debt = (debouncedState.liabilities || []).reduce((a, b) => a + (parseFloat(b.outstandingAmount) || 0), 0);
+     return eq + st + cust + (debouncedState.emergencyFund || 0) - debt;
+  }, [debouncedState]);
+
   const results = useMemo(() => {
-    if (!isLoaded || !state) return null;
-    return calculateProjection(debouncedState);
-  }, [debouncedState, isLoaded, state]);
+    if (!isLoaded || !debouncedState) return null;
+
+    // 1. Run Standard Projection
+    const projectionResult = calculateProjection(debouncedState);
+
+    // 2. Run Monte Carlo (Only if data exists and valid)
+    let mcResults = null;
+    const hasData = (debouncedState.annualIncome > 0 || debouncedState.currentAnnualExpenses > 0 || totalNetWorthForCalc > 0);
+    
+    if (hasData && debouncedState.targetRetirementAge > debouncedState.currentAge) {
+         // Run 200 simulations for speed/accuracy balance
+         mcResults = runMonteCarloSimulation(debouncedState, 200);
+    }
+
+    return {
+        ...projectionResult,
+        monteCarlo: mcResults
+    };
+  }, [debouncedState, isLoaded, totalNetWorthForCalc]);
+
 
   // ==========================================
   // 7. DERIVED METRICS (FIXED LOGIC)
@@ -273,15 +303,15 @@ const handleClear = () => {
   const totalStable = state ? Object.values(state.stableAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalCustom = state ? state.customAssets.reduce((a, b) => a + (b.value || 0), 0) : 0;
   
-  // Liabilities (Debt & EMI) -- ADDED THIS
+  // Liabilities (Debt & EMI)
   const liabilities = state?.liabilities || [];
   const totalDebt = liabilities.reduce((a, b) => a + (parseFloat(b.outstandingAmount) || 0), 0);
   const totalEMI = liabilities.reduce((a, b) => a + (parseFloat(b.monthlyEMI) || 0), 0);
 
-  // Net Worth (Assets - Debt) -- FIXED THIS
+  // Net Worth (Assets - Debt)
   const totalNetWorth = totalEquity + totalStable + totalCustom + (state?.emergencyFund || 0) - totalDebt;
 
-  // Cashflow -- FIXED THIS
+  // Cashflow
   const monthlyIncome = state ? state.annualIncome / 12 : 0;
   const monthlyBaseExpenses = state ? state.currentAnnualExpenses / 12 : 0;
   const totalMonthlySpend = monthlyBaseExpenses + totalEMI; // Include EMI in spend
@@ -378,7 +408,7 @@ const handleClear = () => {
           </main>
       ) : (
       <main className="max-w-7xl mx-auto p-4 md:p-8 pb-40 lg:pb-8 animate-in fade-in duration-500 relative z-10">
-        
+       
        {/* --- MASTER CASHFLOW BANNER --- */}
         <div className={`mb-8 p-5 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-6 shadow-lg transition-all ${netCashflow >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
             
@@ -486,11 +516,7 @@ const handleClear = () => {
                     hasData={hasData}
                     netCashflow={netCashflow}
                     monthlyIncome={monthlyIncome}
-                    
-                    
                     monthlyExpenses={monthlyBaseExpenses} 
-                    
-                    
                     totalSIP={totalSIP}
                     showRealValue={showRealValue}
                     setShowRealValue={setShowRealValue}
