@@ -35,58 +35,94 @@ export const ResultsDashboard = ({
   return (
     <div className="space-y-6">
        
-       {/* --- DUPLICATE BANNER REMOVED FROM HERE --- */}
-
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+       {/* TOP CARDS GRID */}
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {/* Changed to 3 columns for Monte Carlo */}
+         
+         {/* 1. GAP CARD */}
          <Card className="p-6 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.gap > 0 ? "red" : "green"}>
              <div className="relative z-10">
                 <div className="flex justify-between items-start">
                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Gap at Age {state.targetRetirementAge}</p>
                      <button onClick={() => setShowRealValue(!showRealValue)} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide bg-slate-800 border border-slate-700 px-2 py-1 rounded-md hover:bg-slate-700 transition-colors text-slate-300">
                         {showRealValue ? <Eye size={12} className="text-amber-400"/> : <EyeOff size={12}/>}
-                        {showRealValue ? "Real Value" : "Nominal"}
+                        {showRealValue ? "Real" : "Nominal"}
                      </button>
                 </div>
                 {results && results.gap > 0 ? (
                     <>
-                        <h2 className="text-4xl font-black text-rose-500 mb-1 tracking-tight">-{formatCompact(showRealValue ? results.realGap : results.gap)}</h2>
-                        <p className="text-sm font-medium text-rose-400/60">Projected Shortfall</p>
+                        <h2 className="text-3xl font-black text-rose-500 mb-1 tracking-tight">-{formatCompact(showRealValue ? results.realGap : results.gap)}</h2>
+                        <p className="text-xs font-medium text-rose-400/60">Shortfall</p>
                     </>
                 ) : (
                     <>
-                        <h2 className="text-4xl font-black text-emerald-500 mb-1 tracking-tight">+{formatCompact(Math.abs(showRealValue ? results.realGap : results.gap))}</h2>
-                        <p className="text-sm font-medium text-green-400/60">Projected Surplus</p>
+                        <h2 className="text-3xl font-black text-emerald-500 mb-1 tracking-tight">+{formatCompact(Math.abs(showRealValue ? results.realGap : results.gap))}</h2>
+                        <p className="text-xs font-medium text-green-400/60">Surplus</p>
                     </>
                 )}
                 {results.bankruptcyAge && (
                    <div className="mt-3 flex items-center gap-2 bg-red-900/30 p-2 rounded-lg border border-red-800/50">
-                       <Skull size={16} className="text-red-500"/>
+                       <Skull size={14} className="text-red-500"/>
                        <p className="text-[10px] text-red-300 font-bold">
-                           CRITICAL: Money runs out at age {results.bankruptcyAge}!
+                           Empty at age {results.bankruptcyAge}
                        </p>
                    </div>
                 )}
              </div>
          </Card>
 
+         {/* 2. FREEDOM DATE CARD */}
          <Card className="p-6 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow="gold">
              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Freedom Date</p>
              {results && results.fireAge ? (
-                 <div className="flex items-end gap-3">
-                     <h2 className="text-4xl font-black text-amber-400 tracking-tight">{results.fireAge}</h2>
-                     <span className="text-sm font-medium text-slate-500 mb-1.5">Years Old</span>
+                 <div className="flex items-end gap-2">
+                     <h2 className="text-3xl font-black text-amber-400 tracking-tight">{results.fireAge}</h2>
+                     <span className="text-xs font-medium text-slate-500 mb-1.5">Years Old</span>
                  </div>
              ) : (
-                 <h2 className="text-3xl font-black text-slate-600">Never</h2>
+                 <h2 className="text-2xl font-black text-slate-600">Never</h2>
              )}
              {results.bankruptcyAge ? (
-                 <p className="text-xs text-red-500 mt-2 font-bold">Money lasts until: {results.bankruptcyAge} yrs</p>
+                 <p className="text-[10px] text-red-500 mt-2 font-bold">Money lasts until: {results.bankruptcyAge} yrs</p>
              ) : (
-                  <p className="text-xs text-emerald-500 mt-2 font-bold">Wealth sustains forever! 🚀</p>
+                  <p className="text-[10px] text-emerald-500 mt-2 font-bold">Wealth sustains forever! 🚀</p>
              )}
          </Card>
+
+         {/* 3. MONTE CARLO CARD (NEW) */}
+         {results?.monteCarlo ? (
+            <Card className="p-6 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results.monteCarlo.successRate > 80 ? "green" : "gold"}>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <Calculator size={14} /> Success Probability
+                </p>
+                
+                <div className="flex items-end gap-2 mb-2">
+                    <h2 className={`text-3xl font-black tracking-tight ${results.monteCarlo.successRate > 80 ? "text-emerald-400" : results.monteCarlo.successRate > 50 ? "text-amber-400" : "text-rose-400"}`}>
+                        {Math.round(results.monteCarlo.successRate)}%
+                    </h2>
+                </div>
+                
+                <p className="text-[10px] text-slate-400 leading-relaxed mb-3">
+                    In <strong>{results.monteCarlo.successRate.toFixed(0)}/100</strong> simulations, you never run out of money.
+                </p>
+
+                <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-2">
+                    <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-bold">Median End</p>
+                        <p className="text-[10px] font-bold text-slate-300">{formatCompact(results.monteCarlo.medianFinalCorpus)}</p>
+                    </div>
+                    <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-bold">Worst Case</p>
+                        <p className="text-[10px] font-bold text-rose-300">{formatCompact(results.monteCarlo.worstCaseFinalCorpus)}</p>
+                    </div>
+                </div>
+            </Card>
+         ) : (
+            // Placeholder if MC hasn't run yet or data is missing
+            <div className="hidden lg:block"></div>
+         )}
        </div>
 
+       {/* SOLUTIONS GRID */}
        {results && results.gap > 0 && (
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="group bg-amber-500/5 border border-amber-500/10 rounded-xl p-4 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all cursor-pointer">
@@ -115,6 +151,7 @@ export const ResultsDashboard = ({
          </div>
        )}
 
+       {/* MAIN CHART */}
        <Card className="h-[450px] p-4 flex flex-col bg-slate-900/40">
           <div className="flex justify-between items-center mb-6 px-2">
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Wealth Trajectory ({showRealValue ? 'Real Value' : 'Nominal'})</h3>
