@@ -100,7 +100,32 @@ export const ResultsDashboard = ({
                         {Math.round(results.monteCarlo.successRate)}%
                     </h2>
                 </div>
-                
+                 <div className="relative group">
+    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1 cursor-help">
+        <Calculator size={14} /> Monte Carlo (10k Runs) <HelpCircle size={10}/>
+    </p>
+    {/* Tooltip on Hover */}
+    <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-[10px] text-slate-300 z-50">
+        We ran 10,000 simulations of your life. In each, market returns were randomized (Equity ±15%, Debt ±4%).
+        <br/><br/>
+        <strong>{Math.round(results.monteCarlo.successRate)}% Success</strong> means in that many scenarios, you died with money left in the bank.
+    </div>
+</div>
+
+<div className="flex items-end gap-2 mb-2">
+    <h2 className={`text-3xl font-black tracking-tight ${results.monteCarlo.successRate > 90 ? "text-emerald-400" : results.monteCarlo.successRate > 75 ? "text-emerald-200" : results.monteCarlo.successRate > 50 ? "text-amber-400" : "text-rose-400"}`}>
+        {Math.round(results.monteCarlo.successRate)}%
+    </h2>
+</div>
+
+<p className="text-[10px] text-slate-400 leading-relaxed mb-3">
+    Probability that your wealth lasts your entire life, accounting for market crashes and volatility.
+    {results.monteCarlo.successRate < 90 && (
+        <span className="block mt-1 text-amber-400 font-bold">
+            Consider reducing spending or increasing equity to improve this.
+        </span>
+    )}
+</p>
                 <p className="text-[10px] text-slate-400 leading-relaxed mb-3">
                     In <strong>{results.monteCarlo.successRate.toFixed(0)}/100</strong> simulations, you never run out of money.
                 </p>
