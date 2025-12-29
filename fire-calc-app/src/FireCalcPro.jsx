@@ -284,7 +284,7 @@ export default function FireCalcPro() {
     
     if (hasData && debouncedState.targetRetirementAge > debouncedState.currentAge) {
          // Run 200 simulations for speed/accuracy balance
-         mcResults = runMonteCarloSimulation(debouncedState, 200);
+         mcResults = runMonteCarloSimulation(debouncedState, 10000);
     }
 
     return {
