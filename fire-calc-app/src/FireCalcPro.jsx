@@ -3,7 +3,6 @@ import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, BarChart3
 
 // --- IMPORTS ---
 import { calculateProjection } from './utils/fireMath';
-import { runMonteCarloSimulation } from './utils/monteCarlo'; // <--- ADDED BACK
 import { sanitizeCSV, formatCompact } from './utils/formatters';
 import { SEOManager } from './components/SEOManager';
 import { Snowfall } from './components/ui/Snowfall';
@@ -37,6 +36,8 @@ const DEFAULT_STATE = {
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [mcResults, setMcResults] = useState(null);
+const [isMcLoading, setIsMcLoading] = useState(false);
   const fileInputRef = useRef(null);
    
   // --- 1. STATE DEFINITIONS ---
@@ -78,6 +79,34 @@ export default function FireCalcPro() {
     const timer = setTimeout(() => setDebouncedState(state), 200);
     return () => clearTimeout(timer);
   }, [scenarios, activeScenarioId, isLoaded, state]);
+
+  // --- WORKER EFFECT ---
+useEffect(() => {
+    // Only run if we have data and valid retirement age
+    const hasData = (debouncedState.annualIncome > 0 || debouncedState.currentAnnualExpenses > 0 || (debouncedState.equityAssets.mutualFunds + debouncedState.stableAssets.epf) > 0);
+    
+    if (!hasData || debouncedState.targetRetirementAge <= debouncedState.currentAge) {
+        setMcResults(null);
+        return;
+    }
+
+    setIsMcLoading(true);
+
+    // Initialize Worker
+    const worker = new Worker(new URL('./utils/mcWorker.js', import.meta.url), { type: 'module' });
+
+    worker.onmessage = (e) => {
+        setMcResults(e.data);
+        setIsMcLoading(false);
+        worker.terminate();
+    };
+
+    worker.postMessage({ state: debouncedState, iterations: 10000 });
+
+    return () => {
+        worker.terminate();
+    };
+}, [debouncedState]);
 
   // --- 4. SCENARIO ACTIONS ---
   const handleAddScenario = () => {
@@ -272,20 +301,20 @@ export default function FireCalcPro() {
      return eq + st + cust + (debouncedState.emergencyFund || 0) - debt;
   }, [debouncedState]);
 
-  const results = useMemo(() => {
-    if (!isLoaded || !debouncedState) return null;
+ // --- 6. ENGINE CALL (UPDATED FOR WORKER) ---
+const results = useMemo(() => {
+    if (!isLoaded || !state) return null;
 
-    // 1. Run Standard Projection
+    // 1. Run Standard Projection (Sync)
     const projectionResult = calculateProjection(debouncedState);
 
-    // 2. Run Monte Carlo (Only if data exists and valid)
-    let mcResults = null;
-    const hasData = (debouncedState.annualIncome > 0 || debouncedState.currentAnnualExpenses > 0 || totalNetWorthForCalc > 0);
-    
-    if (hasData && debouncedState.targetRetirementAge > debouncedState.currentAge) {
-         // Run 200 simulations for speed/accuracy balance
-         mcResults = runMonteCarloSimulation(debouncedState, 10000);
-    }
+    // 2. Attach the Async Worker Results (from State)
+    return {
+        ...projectionResult,
+        monteCarlo: mcResults, // <--- This now comes from the state we set in useEffect
+        isMcLoading: isMcLoading
+    };
+}, [debouncedState, isLoaded, state, mcResults, isMcLoading]);
 
     return {
         ...projectionResult,
