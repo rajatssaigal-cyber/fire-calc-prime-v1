@@ -315,7 +315,7 @@ const results = useMemo(() => {
         isMcLoading: isMcLoading
     };
 }, [debouncedState, isLoaded, state, mcResults, isMcLoading]);
-
+  
     return {
         ...projectionResult,
         monteCarlo: mcResults
