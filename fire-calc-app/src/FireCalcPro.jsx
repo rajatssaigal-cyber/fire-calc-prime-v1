@@ -11,8 +11,8 @@ import { generatePDFReport } from './utils/pdfGenerator';
 
 // --- FEATURE SECTIONS ---
 import { InputSection } from './components/features/InputSection';
-import { ResultsDashboard } from './components/features/ResultsDashboard'; // Ensure file name matches
-import { ScenarioTabs } from './components/features/ScenarioTabs'; // Ensure file name matches
+import { ResultsDashboard } from './components/features/ResultsDashboard';
+import { ScenarioTabs } from './components/features/ScenarioTabs';
 import { CompareTab } from './components/features/CompareTab';
 import { UserGuideModal } from './components/features/UserGuideModal';
 
@@ -30,14 +30,19 @@ const DEFAULT_STATE = {
   retirementAnnualExpenses: 1200000,
   equityReturn: 12.0, stableReturn: 7.0, taxEquity: 12.5, taxStable: 30.0,
   safeWithdrawalRate: 3.5, inflationRate: 6.0,
+  stressTest: false,
+  taxHarvesting: false,
   lifeEvents: [{ id: 1, name: "Kids Education", age: 48, cost: 4000000, type: 'one-time', endAge: 0 }]
 };
 
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Worker State
   const [mcResults, setMcResults] = useState(null);
-const [isMcLoading, setIsMcLoading] = useState(false);
+  const [isMcLoading, setIsMcLoading] = useState(false);
+  
   const fileInputRef = useRef(null);
    
   // --- 1. STATE DEFINITIONS ---
@@ -80,8 +85,8 @@ const [isMcLoading, setIsMcLoading] = useState(false);
     return () => clearTimeout(timer);
   }, [scenarios, activeScenarioId, isLoaded, state]);
 
-  // --- WORKER EFFECT ---
-useEffect(() => {
+  // --- WORKER EFFECT (Monte Carlo) ---
+  useEffect(() => {
     // Only run if we have data and valid retirement age
     const hasData = (debouncedState.annualIncome > 0 || debouncedState.currentAnnualExpenses > 0 || (debouncedState.equityAssets.mutualFunds + debouncedState.stableAssets.epf) > 0);
     
@@ -106,7 +111,7 @@ useEffect(() => {
     return () => {
         worker.terminate();
     };
-}, [debouncedState]);
+  }, [debouncedState]);
 
   // --- 4. SCENARIO ACTIONS ---
   const handleAddScenario = () => {
@@ -289,20 +294,7 @@ useEffect(() => {
   };
 
   // --- 6. ENGINE CALL ---
-  // ==========================================
-  // 6. ENGINE CALL (WITH MONTE CARLO INTEGRATION)
-  // ==========================================
-  const totalNetWorthForCalc = useMemo(() => {
-     if (!debouncedState) return 0;
-     const eq = Object.values(debouncedState.equityAssets || {}).reduce((a, b) => a + (b || 0), 0);
-     const st = Object.values(debouncedState.stableAssets || {}).reduce((a, b) => a + (b || 0), 0);
-     const cust = (debouncedState.customAssets || []).reduce((a, b) => a + (b.value || 0), 0);
-     const debt = (debouncedState.liabilities || []).reduce((a, b) => a + (parseFloat(b.outstandingAmount) || 0), 0);
-     return eq + st + cust + (debouncedState.emergencyFund || 0) - debt;
-  }, [debouncedState]);
-
- // --- 6. ENGINE CALL (UPDATED FOR WORKER) ---
-const results = useMemo(() => {
+  const results = useMemo(() => {
     if (!isLoaded || !state) return null;
 
     // 1. Run Standard Projection (Sync)
@@ -311,20 +303,13 @@ const results = useMemo(() => {
     // 2. Attach the Async Worker Results (from State)
     return {
         ...projectionResult,
-        monteCarlo: mcResults, // <--- This now comes from the state we set in useEffect
+        monteCarlo: mcResults, // This comes from the Worker useEffect
         isMcLoading: isMcLoading
     };
-}, [debouncedState, isLoaded, state, mcResults, isMcLoading]);
-  
-    return {
-        ...projectionResult,
-        monteCarlo: mcResults
-    };
-  }, [debouncedState, isLoaded, totalNetWorthForCalc]);
-
+  }, [debouncedState, isLoaded, state, mcResults, isMcLoading]);
 
   // ==========================================
-  // 7. DERIVED METRICS (FIXED LOGIC)
+  // 7. DERIVED METRICS
   // ==========================================
   
   // Assets
