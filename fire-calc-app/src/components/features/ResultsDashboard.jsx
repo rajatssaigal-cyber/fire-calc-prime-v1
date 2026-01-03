@@ -3,7 +3,7 @@ import {
   Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart, Bar 
 } from "recharts";
 import { 
-  Eye, EyeOff, Skull, Banknote, Clock, Scissors, Calculator, HelpCircle 
+  Eye, EyeOff, Skull, Banknote, Clock, Scissors, Calculator, HelpCircle, Loader2 
 } from "lucide-react";
 import { Card } from '../ui/Card';
 import { formatCompact, formatINR } from '../../utils/formatters';
@@ -15,18 +15,32 @@ export const ResultsDashboard = ({
   addEvent, updateEvent, toggleEventType, removeEvent 
 }) => {
   
-  if (!hasData) return null; // Handled by parent or empty state
+  // 1. EMPTY STATE (Welcome Screen)
+  if (!hasData) return (
+     <div className="flex flex-col items-center justify-center h-[500px] p-8 bg-zinc-900/30 rounded-3xl border border-white/5 text-center backdrop-blur-sm animate-in fade-in duration-700">
+         <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center mb-6 shadow-2xl border border-white/10 relative">
+            <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
+            <Calculator size={40} className="text-emerald-400 relative z-10" />
+         </div>
+         <h3 className="text-2xl font-bold text-white mb-3 tracking-tight">Your Financial Future Awaits</h3>
+         <p className="text-zinc-400 max-w-sm leading-relaxed mb-6">
+           Enter your current income, assets, and goals on the left to instantly visualize your path to freedom.
+         </p>
+         <div className="flex gap-2 text-xs font-mono text-zinc-600 uppercase tracking-widest">
+           <span>• Inflation Adjusted</span>
+           <span>• Tax Optimized</span>
+         </div>
+     </div>
+  );
 
   return (
     <div className="space-y-6">
        
-       {/* GRID FIX: 
-           1. 'items-start' prevents the shorter cards from stretching to match the tallest one.
-           2. We use 'grid-cols-1 md:grid-cols-3' to keep them in one row on desktop.
-       */}
+       {/* 2. TOP METRIC CARDS */}
+       {/* 'items-start' prevents cards from stretching to match the tallest one */}
        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
          
-         {/* 1. GAP CARD */}
+         {/* A. GAP CARD */}
          <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.gap > 0 ? "red" : "green"}>
              <div className="flex justify-between items-start mb-2">
                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gap at Age {state.targetRetirementAge}</p>
@@ -55,7 +69,7 @@ export const ResultsDashboard = ({
              )}
          </Card>
 
-         {/* 2. FREEDOM DATE CARD */}
+         {/* B. FREEDOM DATE CARD */}
          <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow="gold">
              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Freedom Date</p>
              {results && results.fireAge ? (
@@ -71,45 +85,61 @@ export const ResultsDashboard = ({
              </p>
          </Card>
 
-         {/* 3. MONTE CARLO CARD (COMPACT VERSION) */}
-         {results?.monteCarlo ? (
-            <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results.monteCarlo.successRate > 80 ? "green" : "gold"}>
+         {/* C. MONTE CARLO CARD (With Loading State) */}
+         {/* Show card if we have results OR if currently loading */}
+         {(results?.monteCarlo || results?.isMcLoading) ? (
+            <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.monteCarlo?.successRate > 80 ? "green" : "gold"}>
+                
                 <div className="flex justify-between items-start mb-1">
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
                          Success Probability
                     </p>
-                    <div className="group relative">
-                        <HelpCircle size={12} className="text-slate-600 cursor-help"/>
-                        <div className="absolute right-0 top-6 w-48 p-2 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-300 hidden group-hover:block z-50 shadow-xl">
-                            Based on 10,000 simulations with randomized market returns.
+                    {/* Tooltip */}
+                    {!results.isMcLoading && (
+                        <div className="group relative">
+                            <HelpCircle size={12} className="text-slate-600 cursor-help"/>
+                            <div className="absolute right-0 top-6 w-48 p-2 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-300 hidden group-hover:block z-50 shadow-xl pointer-events-none">
+                                We ran 10,000 simulations with randomized market returns (Equity ±15%, Debt ±4%).
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
                 
-                <div className="flex items-baseline gap-2 mb-3">
-                    <h2 className={`text-3xl font-black tracking-tight ${results.monteCarlo.successRate > 80 ? "text-emerald-400" : results.monteCarlo.successRate > 50 ? "text-amber-400" : "text-rose-400"}`}>
-                        {Math.round(results.monteCarlo.successRate)}%
-                    </h2>
-                    <span className="text-[10px] font-bold text-slate-600">Safe</span>
-                </div>
+                {/* LOADING STATE vs DATA STATE */}
+                {results.isMcLoading ? (
+                    <div className="h-[76px] flex flex-col items-center justify-center gap-2 opacity-50">
+                        <Loader2 size={24} className="text-emerald-500 animate-spin"/>
+                        <span className="text-[10px] font-mono text-slate-400">Simulating 10k Futures...</span>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex items-baseline gap-2 mb-3">
+                            <h2 className={`text-3xl font-black tracking-tight ${results.monteCarlo.successRate > 80 ? "text-emerald-400" : results.monteCarlo.successRate > 50 ? "text-amber-400" : "text-rose-400"}`}>
+                                {Math.round(results.monteCarlo.successRate)}%
+                            </h2>
+                            <span className="text-[10px] font-bold text-slate-600">Safe</span>
+                        </div>
 
-                <div className="pt-3 border-t border-white/5 grid grid-cols-2 gap-4">
-                    <div>
-                        <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Median End</p>
-                        <p className="text-xs font-bold text-slate-300">{formatCompact(results.monteCarlo.medianFinalCorpus)}</p>
-                    </div>
-                    <div>
-                        <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Worst Case</p>
-                        <p className="text-xs font-bold text-rose-300">{formatCompact(results.monteCarlo.worstCaseFinalCorpus)}</p>
-                    </div>
-                </div>
+                        <div className="pt-3 border-t border-white/5 grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Median End</p>
+                                <p className="text-xs font-bold text-slate-300">{formatCompact(results.monteCarlo.medianFinalCorpus)}</p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Worst Case</p>
+                                <p className="text-xs font-bold text-rose-300">{formatCompact(results.monteCarlo.worstCaseFinalCorpus)}</p>
+                            </div>
+                        </div>
+                    </>
+                )}
             </Card>
          ) : (
+            // Placeholder to keep grid alignment if MC is off/waiting
             <div className="hidden md:block"></div> 
          )}
        </div>
 
-       {/* SOLUTIONS SUGGESTIONS */}
+       {/* 3. SOLUTIONS (Only if Shortfall) */}
        {results && results.gap > 0 && (
          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-3 flex items-center justify-between">
@@ -138,7 +168,7 @@ export const ResultsDashboard = ({
          </div>
        )}
 
-       {/* MAIN CHART */}
+       {/* 4. MAIN CHART */}
        <Card className="h-[400px] p-4 flex flex-col bg-slate-900/40">
           <div className="flex justify-between items-center mb-4 px-1">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Wealth Trajectory</h3>
@@ -176,6 +206,8 @@ export const ResultsDashboard = ({
                 <Area type="monotone" dataKey="custom" stackId="1" stroke="#fbbf24" fill="url(#gCustom)" name="Alternatives" strokeWidth={1} />
                 <Area type="monotone" dataKey="stable" stackId="1" stroke="#f43f5e" fill="url(#gStable)" name="Stable" strokeWidth={1} />
                 <Area type="monotone" dataKey="equity" stackId="1" stroke="#10b981" fill="url(#gEq)" name="Equity" strokeWidth={1} />
+                
+                {/* Emergency Fund Area */}
                 <Area type="monotone" dataKey={showRealValue ? "realEmergency" : "emergency"} stackId="0" stroke="#06b6d4" fill="url(#gEmergency)" name="Safety Net" strokeWidth={1} strokeDasharray="4 4" />
                 
                 <Bar dataKey="event" fill="#a855f7" name="Event" barSize={2} radius={[2, 2, 0, 0]} />
