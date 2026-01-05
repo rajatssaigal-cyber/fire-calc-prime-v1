@@ -1,5 +1,8 @@
 import React from 'react';
-import { BookOpen, TrendingUp, AlertTriangle, ShieldCheck, Calculator } from 'lucide-react';
+import { 
+  BookOpen, TrendingUp, AlertTriangle, ShieldCheck, 
+  Calculator, Umbrella, Sprout, ArrowRight 
+} from 'lucide-react';
 
 export const MethodologyTab = () => {
   return (
@@ -56,17 +59,17 @@ export const MethodologyTab = () => {
       />
 
       <Section 
-        icon={ShieldCheck} 
-        title="3. Tax Drag & Harvesting" 
-        color="text-amber-400"
+        icon={Sprout} 
+        title="3. Smart Tax Harvesting" 
+        color="text-emerald-300"
         content={
           <>
             <p>
-              Taxes act like friction on your compounding. We model this explicitly.
+              Taxes act like friction on your compounding. Our engine models the <strong>LTCG (Long Term Capital Gains)</strong> tax drag monthly but also simulates smart behavior.
             </p>
             <ul className="list-disc pl-5 space-y-2 mt-4 text-slate-400">
-              <li><strong>Tax Drag:</strong> We reduce your monthly return rate by your tax bracket assumptions. This prevents over-optimism.</li>
-              <li><strong>Tax Harvesting (₹1.25L Rule):</strong> Every March, the engine simulates "booking" ₹1.25 Lakh of profit (which is tax-free in India) and reinvesting it. This raises your "Buy Price" and lowers your future tax bill.</li>
+              <li><strong>Tax Drag:</strong> We reduce your monthly return rate by your tax bracket assumptions to prevent over-optimism.</li>
+              <li><strong>Harvesting Algorithm:</strong> If enabled, the engine simulates "booking" ₹1.25 Lakh of profit every March (which is tax-free in India) and immediately reinvesting it. This raises your "Buy Price" and lowers your future tax bill significantly.</li>
             </ul>
           </>
         }
@@ -84,7 +87,7 @@ export const MethodologyTab = () => {
             
             <div className="grid md:grid-cols-2 gap-6 mt-6">
                 <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
-                    <h4 className="font-bold text-indigo-300 mb-2 text-sm">The Math (Box-Muller Transform)</h4>
+                    <h4 className="font-bold text-indigo-300 mb-2 text-sm">The Math (Box-Muller)</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
                         We don't use a fixed return (e.g., 12%). For every simulation year, we generate a random return based on a Normal Distribution (Bell Curve).
                         <br/><br/>
@@ -104,6 +107,33 @@ export const MethodologyTab = () => {
                         <li><strong>&lt; 50%:</strong> High Risk. You are relying on luck.</li>
                     </ul>
                 </div>
+            </div>
+          </>
+        }
+      />
+
+      <Section 
+        icon={Umbrella} 
+        title="5. Dynamic Flexibility (Guyton-Klinger Lite)" 
+        color="text-teal-400"
+        content={
+          <>
+            <p>
+              Standard calculators assume you are a robot who keeps spending huge amounts even if the market crashes. Real humans <strong>tighten their belts</strong>.
+            </p>
+            <div className="bg-teal-500/10 border border-teal-500/20 p-4 rounded-lg mt-4">
+               <h4 className="font-bold text-teal-300 text-sm uppercase mb-2">The Logic</h4>
+               <p className="text-xs font-mono text-slate-300">
+                 IF (Portfolio &lt; PeakValue * 0.80):<br/>
+                 &nbsp;&nbsp;Spending = Spending * 0.90 (10% Cut)<br/>
+                 ELSE IF (Portfolio &lt; PeakValue):<br/>
+                 &nbsp;&nbsp;Spending = PreviousYear (Freeze Inflation)<br/>
+                 ELSE:<br/>
+                 &nbsp;&nbsp;Spending = Spending + Inflation (Business as usual)
+               </p>
+               <p className="text-xs text-slate-400 mt-2">
+                  This simple rule prevents you from depleting your capital during a crash, significantly increasing portfolio survival rates.
+               </p>
             </div>
           </>
         }
