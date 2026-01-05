@@ -1,9 +1,11 @@
 // src/utils/fireMath.js
 
+// 1. Precise Helper for "Save More" Solution (Binary Search)
 const solveForRequiredSIP = (gap, months, ratePerMonth, stepUpAnnual) => {
     let low = 0;
     let high = gap; 
     let solution = 0;
+    // Iterate 20 times for high precision without infinite loops
     for(let i=0; i<20; i++) {
         const mid = (low + high) / 2;
         let fv = 0;
@@ -30,10 +32,12 @@ export const calculateProjection = (state) => {
     const startEquity = Object.values(s.equityAssets).reduce((a, b) => a + (b||0), 0);
     const startStable = Object.values(s.stableAssets).reduce((a, b) => a + (b||0), 0);
     
+    // --- FLAGS ---
     const doStressTest = s.stressTest === true;
-    const doTaxHarvesting = s.taxHarvesting === true; // <--- NEW FLAG
+    const doTaxHarvesting = s.taxHarvesting === true;
+    const doFlexibility = s.flexibilityMode === true; // <--- NEW FLAG
 
-    // Rates
+    // --- RATES ---
     // We assume rEquityBase includes the Tax Drag. Harvesting will add it back.
     const rEquityBase = ((Math.min(s.equityReturn, 100)) * (1 - (s.taxEquity/100) * 0.75)) / 100; 
     const rStable = (Math.min(s.stableReturn, 100) * (1 - (s.taxStable/100))) / 100; 
@@ -54,7 +58,12 @@ export const calculateProjection = (state) => {
     let curEmergency = s.emergencyFund;
     let emergencyCoverageFuture = 0;
     let bankruptcyAge = null;
-    let harvestingBonusWealth = 0; // <--- Tracks extra wealth from harvesting
+    let harvestingBonusWealth = 0; 
+
+    // --- FLEX MODE TRACKERS ---
+    let peakCorpus = 0; // Tracks highest portfolio value seen (for guardrails)
+    let currentAnnualDrawdown = s.retirementAnnualExpenses; // Dynamic drawdown tracker
+    // --------------------------
 
     const data = [];
     let fireMonthIndex = -1, reached = false;
@@ -74,6 +83,12 @@ export const calculateProjection = (state) => {
         const currentAge = s.currentAge + (m/12);
         const isYearStart = (m-1) % 12 === 0;
 
+        // Track Peak Corpus (Used for Flex Mode during retirement)
+        const totalLiquidity = curEquity + curStable; // Peak usually tracks liquid assets
+        if (isRetired && totalLiquidity > peakCorpus) {
+            peakCorpus = totalLiquidity;
+        }
+
         // 1. Dynamic Return (Stress Test)
         let currentEquityReturn = rEquityBase;
         if (doStressTest && isRetired && m <= monthsToRetire + 24) {
@@ -82,19 +97,15 @@ export const calculateProjection = (state) => {
         const mrEquity = Math.pow(1 + currentEquityReturn, 1/12) - 1;
 
         // 2. Tax Harvesting Logic (Every March / Year Start)
-        // We add back the tax that was "dragged" down by rEquityBase for the exempt portion
         if (isYearStart && !isRetired && curEquity > 0) {
             const annualGain = curEquity * (s.equityReturn / 100);
-            const exemptLimit = 125000; // Fixed nominal limit
+            const exemptLimit = 125000; 
             const harvestableGain = Math.min(annualGain, exemptLimit);
-            
-            // The 'Tax Saved' is effectively the return we DIDN'T lose to the tax drag
             const taxSaved = harvestableGain * (s.taxEquity / 100);
             
             if (doTaxHarvesting) {
                 curEquity += taxSaved;
             }
-            // Track bonus for UI
             harvestingBonusWealth = (harvestingBonusWealth * (1 + s.equityReturn/100)) + taxSaved;
         }
 
@@ -106,12 +117,42 @@ export const calculateProjection = (state) => {
             currentMonthIncomeVal = (s.annualIncome / 12) * Math.pow(1 + monthlyIncomeGrowth, monthIndex);
         }
 
+        // --- EXPENSE CALCULATION (With Flex Mode Injection) ---
+        let monthlyExp = 0;
         const annualExpMultiplier = Math.pow(1 + effectiveInflation/100, monthIndex/12);
-        const annualExp = s.retirementAnnualExpenses * annualExpMultiplier; 
-        const monthlyExp = annualExp / 12;
-        
+
+        if (!isRetired) {
+            // Standard Inflation before retirement
+            const annualExp = s.retirementAnnualExpenses * annualExpMultiplier; 
+            monthlyExp = annualExp / 12;
+            // Update the baseline for when retirement starts
+            currentAnnualDrawdown = annualExp; 
+        } else {
+            // RETIREMENT PHASE
+            if (isYearStart) {
+                 // Determine Increase for this year
+                 let increaseFactor = (1 + effectiveInflation/100);
+
+                 if (doFlexibility && peakCorpus > 0) {
+                     // GUARDRAIL 1: Capital Preservation (-20% from peak)
+                     if (totalLiquidity < peakCorpus * 0.80) {
+                         // CUT SPENDING by 10% (Deflationary)
+                         increaseFactor = 0.90; 
+                     } 
+                     // GUARDRAIL 2: Inflation Freeze (Below peak)
+                     else if (totalLiquidity < peakCorpus) {
+                         // FREEZE SPENDING (0% hike)
+                         increaseFactor = 1.0; 
+                     }
+                 }
+                 currentAnnualDrawdown = currentAnnualDrawdown * increaseFactor;
+            }
+            monthlyExp = currentAnnualDrawdown / 12;
+        }
+        // -------------------------------------------------------
+
         const currentMonthExpenseVal = (s.currentAnnualExpenses / 12) * annualExpMultiplier;
-        const targetCorpus = (annualExp / (Math.max(0.1, s.safeWithdrawalRate)/100));
+        const targetCorpus = (currentAnnualDrawdown / (Math.max(0.1, s.safeWithdrawalRate)/100));
 
         let monthlyRecurringOutflow = 0;
         recurringEvents.forEach(e => {
@@ -223,7 +264,7 @@ export const calculateProjection = (state) => {
         }
 
         if (m === Math.round(monthsToRetire)) {
-             const retirementMonthlyExp = Math.max(annualExp / 12, 1);
+             const retirementMonthlyExp = Math.max(currentAnnualDrawdown / 12, 1);
              emergencyCoverageFuture = (curEmergency / retirementMonthlyExp).toFixed(1);
         }
         
@@ -287,6 +328,6 @@ export const calculateProjection = (state) => {
         corpusAtRetirement,
         bankruptcyAge: bankruptcyAge ? bankruptcyAge.toFixed(1) : null,
         initialSurplus,
-        harvestingBonusWealth // <--- RETURN THE BONUS
+        harvestingBonusWealth 
     };
 };
