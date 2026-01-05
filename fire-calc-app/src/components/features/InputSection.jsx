@@ -16,9 +16,9 @@ export const InputSection = ({
     addCustomAsset, 
     updateCustomAsset, 
     removeCustomAsset, 
-    addLiability,     
-    updateLiability,  
-    removeLiability,  
+    addLiability,      
+    updateLiability,   
+    removeLiability,   
     results, 
     totalNetWorth, 
     totalEquity, 
@@ -44,11 +44,6 @@ export const InputSection = ({
   return (
     <div className="space-y-6">
            
-           {/* -------------------------------------------------------
-              NOTE: Banners removed. They are now in FireCalcPro.jsx
-              -------------------------------------------------------
-           */}
-
            {/* 1. CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
               <div className="space-y-4">
@@ -80,7 +75,7 @@ export const InputSection = ({
                         />
                     </div>
 
-                    {/* Local Budget Warning (Kept for context while typing) */}
+                    {/* Local Budget Warning */}
                     {isOverBudget && (
                         <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-1">
                             <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
@@ -251,7 +246,7 @@ export const InputSection = ({
               </div>
               <SmartInput label="Target Retirement Spend (Annual)" value={state.retirementAnnualExpenses} onChange={v=>updateState('retirementAnnualExpenses',v)} icon={CreditCard} iconColor="text-rose-400" prefix="₹" tooltip="How much will you spend annually in retirement (in today's value)?" />
               
-              <div className="mt-4 pt-4 border-t border-white/5">
+              <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
                   {/* STRESS TEST TOGGLE */}
                   <div className="flex justify-between items-start">
                      <div className="flex items-start gap-3">
@@ -278,7 +273,7 @@ export const InputSection = ({
                   
                   {/* STRESS TEST BLUEPRINT */}
                   {state.stressTest && (
-                     <div className="mt-4 bg-slate-950/50 border border-rose-500/20 p-3 rounded-lg space-y-2 animate-in fade-in slide-in-from-top-2">
+                     <div className="bg-slate-950/50 border border-rose-500/20 p-3 rounded-lg space-y-2 animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-center gap-2 mb-1">
                             <AlertCircle size={12} className="text-rose-500"/>
                             <p className="text-[10px] font-bold text-rose-400 uppercase">Scenario: Sequence Risk</p>
@@ -291,6 +286,30 @@ export const InputSection = ({
                         </div>
                      </div>
                   )}
+
+                  {/* --- NEW FLEXIBILITY TOGGLE --- */}
+                  <div className="flex justify-between items-start pt-2 border-t border-white/5">
+                     <div className="flex items-start gap-3">
+                        <div className="bg-teal-500/20 p-2 rounded-lg text-teal-400 mt-1">
+                            <Umbrella size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-teal-300">Flexible Spending</p>
+                            <p className="text-[10px] text-teal-200/60 leading-tight mt-1 max-w-[200px]">
+                                Simulate "belt-tightening" by cutting spend if portfolio drops.
+                            </p>
+                        </div>
+                     </div>
+                     <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={state.flexibilityMode || false} 
+                            onChange={(e) => updateState('flexibilityMode', e.target.checked)} 
+                        />
+                        <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-500"></div>
+                     </label>
+                  </div>
               </div>
            </CollapsibleSection>
 
