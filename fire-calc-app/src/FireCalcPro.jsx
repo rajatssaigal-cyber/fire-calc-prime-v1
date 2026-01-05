@@ -32,6 +32,7 @@ const DEFAULT_STATE = {
   safeWithdrawalRate: 3.5, inflationRate: 6.0,
   stressTest: false,
   taxHarvesting: false,
+  flexibilityMode: false,
   lifeEvents: [{ id: 1, name: "Kids Education", age: 48, cost: 4000000, type: 'one-time', endAge: 0 }]
 };
 
