@@ -1,14 +1,12 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatCompact } from './formatters';
 
-// Helper for PDF-safe currency (The Fix)
+// Helper for PDF-safe currency
 const formatPdfVal = (val) => {
     if (isNaN(val)) return "Rs. 0";
     const absVal = Math.abs(val);
     const prefix = val < 0 ? "-" : "";
     
-    // Use same logic as formatCompact but force "Rs."
     let formatted;
     if (absVal >= 10000000) formatted = `${(absVal / 10000000).toFixed(2)} Cr`; 
     else if (absVal >= 100000) formatted = `${(absVal / 100000).toFixed(1)} L`;
@@ -20,7 +18,7 @@ const formatPdfVal = (val) => {
 
 export const generatePDFReport = (state, results) => {
   const doc = new jsPDF();
-  const themeColor = [16, 185, 129]; 
+  const themeColor = [16, 185, 129]; // Emerald 500
 
   // --- 1. HEADER ---
   doc.setFillColor(...themeColor);
@@ -34,7 +32,7 @@ export const generatePDFReport = (state, results) => {
   doc.setFont('helvetica', 'normal');
   doc.text(`Generated: ${new Date().toLocaleDateString()}`, 195, 13, { align: 'right' });
 
-  // --- 2. SUMMARY ---
+  // --- 2. SUMMARY CARDS ---
   let y = 35;
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(14);
@@ -66,28 +64,46 @@ export const generatePDFReport = (state, results) => {
   
   drawCard("Freedom Age", results.fireAge || "Never", 152, [245, 158, 11]); 
 
-  // --- 3. INPUTS ---
+  // --- 3. INPUTS & CONFIGURATION ---
   y += 40;
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text("Key Assumptions", 14, y);
+  doc.text("Key Assumptions & Strategy", 14, y);
   
   autoTable(doc, {
       startY: y + 5,
-      head: [['Current Age', 'Retire Age', 'Monthly Spend', 'Inflation', 'Equity Return']],
-      body: [[
-          state.currentAge, 
-          state.targetRetirementAge, 
-          formatPdfVal(state.retirementAnnualExpenses / 12),
-          state.inflationRate + '%',
-          state.equityReturn + '%'
-      ]],
+      // Updated headers to include Strategy
+      head: [['Metric', 'Value', 'Metric', 'Value']],
+      body: [
+          ['Current Age', state.currentAge, 'Retire Age', state.targetRetirementAge],
+          ['Monthly Spend', formatPdfVal(state.retirementAnnualExpenses / 12), 'Inflation', state.inflationRate + '%'],
+          ['Equity Return', state.equityReturn + '%', 'Stress Test', state.stressTest ? 'Active (-20%)' : 'None'],
+          ['Tax Harvesting', state.taxHarvesting ? 'Yes' : 'No', 'Withdrawal', state.flexibilityMode ? 'Flexible' : 'Fixed']
+      ],
       theme: 'grid',
       headStyles: { fillColor: [50, 50, 50], textColor: 255, fontSize: 9 },
       bodyStyles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
   });
 
-  // --- 4. TRAJECTORY ---
+  // --- 4. SUGGESTED FIXES (NEW SECTION) ---
+  if (results.gap > 0) {
+      doc.text("Recommended Actions", 14, doc.lastAutoTable.finalY + 15);
+      
+      autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 20,
+          body: [
+              ['Save More', `Increase monthly SIP by +${formatPdfVal(results.solutions.saveMore)}`],
+              ['Work Longer', `Delay retirement by +${results.solutions.workLonger} Years`],
+              ['Spend Less', `Reduce annual retirement spend by -${formatPdfVal(results.solutions.spendLess)}`]
+          ],
+          theme: 'plain',
+          styles: { fontSize: 10, textColor: [40,40,40] },
+          columnStyles: { 0: { fontStyle: 'bold', textColor: [220, 38, 38] } }
+      });
+  }
+
+  // --- 5. TRAJECTORY ---
   const keyRows = results.projection.filter(p => 
       p.age === Math.floor(state.currentAge) ||
       p.age === state.targetRetirementAge ||
