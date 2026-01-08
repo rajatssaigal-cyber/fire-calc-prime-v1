@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart, Bar 
 } from "recharts";
 import { 
-  Eye, EyeOff, Skull, Banknote, Clock, Scissors, Calculator, HelpCircle, Loader2 
+  Eye, EyeOff, Skull, Banknote, Clock, Scissors, Calculator, HelpCircle, Loader2, GripVertical 
 } from "lucide-react";
 import { Card } from '../ui/Card';
 import { formatCompact, formatINR } from '../../utils/formatters';
@@ -11,11 +11,57 @@ import { LifeEventsList } from './LifeEventsList';
 import { DetailedTable } from './DetailedTable.jsx';
 
 export const ResultsDashboard = ({ 
-  results, state, hasData, showRealValue, setShowRealValue, 
+  results, state, updateState, hasData, showRealValue, setShowRealValue, 
   addEvent, updateEvent, toggleEventType, removeEvent 
 }) => {
   
-  // 1. EMPTY STATE (Welcome Screen)
+  const [isDragging, setIsDragging] = useState(false);
+
+  // 1. DRAG HANDLERS
+  const handleChartMouseDown = (e) => {
+    if (e && e.activeLabel) {
+      // Only start dragging if clicked near the current retirement age (±2 years tolerance)
+      if (Math.abs(e.activeLabel - state.targetRetirementAge) <= 2) {
+        setIsDragging(true);
+      }
+    }
+  };
+
+  const handleChartMouseMove = (e) => {
+    if (isDragging && e && e.activeLabel) {
+      // Prevent dragging past current age or illogical futures
+      const newAge = Math.max(state.currentAge + 1, Math.min(90, e.activeLabel));
+      if (newAge !== state.targetRetirementAge) {
+        updateState('targetRetirementAge', newAge);
+      }
+    }
+  };
+
+  const handleChartMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Custom Label for the Draggable Line
+  const DraggableLabel = (props) => {
+    const { viewBox } = props;
+    const x = viewBox.x;
+    const y = viewBox.y;
+    return (
+      <g style={{ cursor: 'col-resize' }}>
+         <rect x={x - 15} y={0} width={30} height={300} fill="transparent" /> {/* Invisible hit area */}
+         <foreignObject x={x - 12} y={10} width={24} height={24}>
+            <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-200 text-slate-600 hover:scale-110 transition-transform cursor-col-resize">
+               <GripVertical size={14} />
+            </div>
+         </foreignObject>
+         <text x={x} y={45} fill="#fff" textAnchor="middle" fontSize={10} fontWeight="bold" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+             {state.targetRetirementAge}
+         </text>
+      </g>
+    );
+  };
+
+  // 2. EMPTY STATE
   if (!hasData) return (
      <div className="flex flex-col items-center justify-center h-[500px] p-8 bg-zinc-900/30 rounded-3xl border border-white/5 text-center backdrop-blur-sm animate-in fade-in duration-700">
          <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center mb-6 shadow-2xl border border-white/10 relative">
@@ -34,10 +80,10 @@ export const ResultsDashboard = ({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onMouseUp={handleChartMouseUp}> 
+       {/* Note: onMouseUp on container ensures drag stops even if mouse leaves chart area */}
        
-       {/* 2. TOP METRIC CARDS */}
-       {/* 'items-start' prevents cards from stretching to match the tallest one */}
+       {/* 3. TOP METRIC CARDS */}
        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
          
          {/* A. GAP CARD */}
@@ -85,16 +131,13 @@ export const ResultsDashboard = ({
              </p>
          </Card>
 
-         {/* C. MONTE CARLO CARD (With Loading State) */}
-         {/* Show card if we have results OR if currently loading */}
+         {/* C. MONTE CARLO CARD */}
          {(results?.monteCarlo || results?.isMcLoading) ? (
             <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.monteCarlo?.successRate > 80 ? "green" : "gold"}>
-                
                 <div className="flex justify-between items-start mb-1">
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
                          Success Probability
                     </p>
-                    {/* Tooltip */}
                     {!results.isMcLoading && (
                         <div className="group relative">
                             <HelpCircle size={12} className="text-slate-600 cursor-help"/>
@@ -105,7 +148,6 @@ export const ResultsDashboard = ({
                     )}
                 </div>
                 
-                {/* LOADING STATE vs DATA STATE */}
                 {results.isMcLoading ? (
                     <div className="h-[76px] flex flex-col items-center justify-center gap-2 opacity-50">
                         <Loader2 size={24} className="text-emerald-500 animate-spin"/>
@@ -119,7 +161,6 @@ export const ResultsDashboard = ({
                             </h2>
                             <span className="text-[10px] font-bold text-slate-600">Safe</span>
                         </div>
-
                         <div className="pt-3 border-t border-white/5 grid grid-cols-2 gap-4">
                             <div>
                                 <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Median End</p>
@@ -134,12 +175,11 @@ export const ResultsDashboard = ({
                 )}
             </Card>
          ) : (
-            // Placeholder to keep grid alignment if MC is off/waiting
             <div className="hidden md:block"></div> 
          )}
        </div>
 
-       {/* 3. SOLUTIONS (Only if Shortfall) */}
+       {/* 4. SOLUTIONS (Only if Shortfall) */}
        {results && results.gap > 0 && (
          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-3 flex items-center justify-between">
@@ -168,11 +208,13 @@ export const ResultsDashboard = ({
          </div>
        )}
 
-       {/* 4. MAIN CHART */}
-       <Card className="h-[400px] p-4 flex flex-col bg-slate-900/40">
+       {/* 5. MAIN CHART */}
+       <Card className="h-[400px] p-4 flex flex-col bg-slate-900/40 cursor-crosshair">
           <div className="flex justify-between items-center mb-4 px-1">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Wealth Trajectory</h3>
-              {/* Legend */}
+              <div className="flex flex-col">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Wealth Trajectory</h3>
+                  {isDragging && <span className="text-[10px] text-emerald-400 font-bold animate-pulse">Release to set Retirement Age to {state.targetRetirementAge}</span>}
+              </div>
               <div className="flex gap-3 text-[9px] font-medium text-slate-400">
                   <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Equity</span>
                   <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div> Stable</span>
@@ -180,7 +222,13 @@ export const ResultsDashboard = ({
               </div>
           </div>
           <ResponsiveContainer width="100%" height="100%">
-             <ComposedChart data={results ? results.projection : []} margin={{top:5, right:5, left:-20, bottom:0}}>
+             <ComposedChart 
+                data={results ? results.projection : []} 
+                margin={{top:5, right:5, left:-20, bottom:0}}
+                onMouseDown={handleChartMouseDown}
+                onMouseMove={handleChartMouseMove}
+                onMouseUp={handleChartMouseUp}
+             >
                 <defs>
                     <linearGradient id="gEq" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
                     <linearGradient id="gStable" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/><stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/></linearGradient>
@@ -202,21 +250,22 @@ export const ResultsDashboard = ({
                     itemStyle={{padding:0}}
                     formatter={(val, name) => [formatINR(val), name === 'target' ? 'Required' : name === 'balance' ? 'Total' : name]}
                     labelFormatter={(label) => `Age ${label}`}
+                    cursor={{ stroke: '#ffffff20', strokeWidth: 1 }}
                 />
-                <Area type="monotone" dataKey="custom" stackId="1" stroke="#fbbf24" fill="url(#gCustom)" name="Alternatives" strokeWidth={1} />
-                <Area type="monotone" dataKey="stable" stackId="1" stroke="#f43f5e" fill="url(#gStable)" name="Stable" strokeWidth={1} />
-                <Area type="monotone" dataKey="equity" stackId="1" stroke="#10b981" fill="url(#gEq)" name="Equity" strokeWidth={1} />
+                <Area type="monotone" dataKey="custom" stackId="1" stroke="#fbbf24" fill="url(#gCustom)" name="Alternatives" strokeWidth={1} isAnimationActive={!isDragging} />
+                <Area type="monotone" dataKey="stable" stackId="1" stroke="#f43f5e" fill="url(#gStable)" name="Stable" strokeWidth={1} isAnimationActive={!isDragging} />
+                <Area type="monotone" dataKey="equity" stackId="1" stroke="#10b981" fill="url(#gEq)" name="Equity" strokeWidth={1} isAnimationActive={!isDragging} />
                 
-                {/* Emergency Fund Area */}
-                <Area type="monotone" dataKey={showRealValue ? "realEmergency" : "emergency"} stackId="0" stroke="#06b6d4" fill="url(#gEmergency)" name="Safety Net" strokeWidth={1} strokeDasharray="4 4" />
+                <Area type="monotone" dataKey={showRealValue ? "realEmergency" : "emergency"} stackId="0" stroke="#06b6d4" fill="url(#gEmergency)" name="Safety Net" strokeWidth={1} strokeDasharray="4 4" isAnimationActive={!isDragging} />
                 
-                <Bar dataKey="event" fill="#a855f7" name="Event" barSize={2} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="event" fill="#a855f7" name="Event" barSize={2} radius={[2, 2, 0, 0]} isAnimationActive={!isDragging} />
                 <Bar 
                     dataKey={showRealValue ? "realWithdrawal" : "withdrawal"} 
                     fill="#ef4444" 
                     name="Withdrawal" 
                     barSize={2} 
                     radius={[2, 2, 0, 0]} 
+                    isAnimationActive={!isDragging}
                 />
                 <Line 
                     type="monotone" 
@@ -225,6 +274,7 @@ export const ResultsDashboard = ({
                     strokeWidth={1.5} 
                     dot={false} 
                     name="Total" 
+                    isAnimationActive={!isDragging}
                 />
                 <Line 
                     type="stepAfter" 
@@ -234,8 +284,17 @@ export const ResultsDashboard = ({
                     dot={false} 
                     strokeDasharray="3 3" 
                     name="Target" 
+                    isAnimationActive={!isDragging}
                 />
-                <ReferenceLine x={state.targetRetirementAge} stroke="#fff" strokeOpacity={0.1} label={{position:'insideTopRight', value:'RETIRE', fill:'#fff', fontSize:8, opacity:0.5}} />
+                
+                {/* DRAGGABLE REFERENCE LINE */}
+                <ReferenceLine 
+                    x={state.targetRetirementAge} 
+                    stroke="#fff" 
+                    strokeOpacity={0.8} 
+                    strokeWidth={2}
+                    label={<DraggableLabel />} 
+                />
              </ComposedChart>
           </ResponsiveContainer>
        </Card>
