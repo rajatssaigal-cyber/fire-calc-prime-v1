@@ -153,7 +153,7 @@ export const ResultsDashboard = ({
              </p>
          </Card>
 
-         {/* C. MONTE CARLO CARD */}
+        {/* C. MONTE CARLO CARD */}
          {(results?.monteCarlo || results?.isMcLoading) ? (
             <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.monteCarlo?.successRate > 80 ? "green" : "gold"}>
                 <div className="flex justify-between items-start mb-1">
@@ -177,22 +177,43 @@ export const ResultsDashboard = ({
                     </div>
                 ) : (
                     <>
+                        {/* 1. SUCCESS RATE (Always standard %) */}
                         <div className="flex items-baseline gap-2 mb-3">
                             <h2 className={`text-3xl font-black tracking-tight ${results.monteCarlo.successRate > 80 ? "text-emerald-400" : results.monteCarlo.successRate > 50 ? "text-amber-400" : "text-rose-400"}`}>
                                 {Math.round(results.monteCarlo.successRate)}%
                             </h2>
                             <span className="text-[10px] font-bold text-slate-600">Safe</span>
                         </div>
-                        <div className="pt-3 border-t border-white/5 grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Median End</p>
-                                <p className="text-xs font-bold text-slate-300">{formatCompact(results.monteCarlo.medianFinalCorpus)}</p>
-                            </div>
-                            <div>
-                                <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Worst Case</p>
-                                <p className="text-xs font-bold text-rose-300">{formatCompact(results.monteCarlo.worstCaseFinalCorpus)}</p>
-                            </div>
-                        </div>
+
+                        {/* 2. DYNAMIC REAL VALUE LOGIC */}
+                        {(() => {
+                            // Calculate total inflation impact from Now until End of Plan (Life Expectancy)
+                            const planDuration = state.lifeExpectancy - state.currentAge;
+                            // If Real Value is ON, we divide by (1 + Inflation)^Years
+                            const deflator = showRealValue 
+                                ? Math.pow(1 + state.inflationRate/100, planDuration) 
+                                : 1;
+                            
+                            const medianEnd = results.monteCarlo.medianFinalCorpus / deflator;
+                            const worstEnd = results.monteCarlo.worstCaseFinalCorpus / deflator;
+
+                            return (
+                                <div className="pt-3 border-t border-white/5 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Median End</p>
+                                        <p className="text-xs font-bold text-slate-300">
+                                            {formatCompact(medianEnd)}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] text-slate-500 uppercase font-bold mb-0.5">Worst Case</p>
+                                        <p className={`text-xs font-bold ${worstEnd < 0 ? 'text-rose-400' : 'text-rose-300'}`}>
+                                            {formatCompact(worstEnd)}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </>
                 )}
             </Card>
