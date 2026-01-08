@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart, Bar 
 } from "recharts";
@@ -17,10 +17,20 @@ export const ResultsDashboard = ({
   
   const [isDragging, setIsDragging] = useState(false);
 
+  // --- FIX START: Define Dynamic Keys based on Eye Button State ---
+  // This ensures the Area charts look for 'realEquity' instead of just 'equity'
+  const kEquity = showRealValue ? "realEquity" : "equity";
+  const kStable = showRealValue ? "realStable" : "stable";
+  const kCustom = showRealValue ? "realCustom" : "custom";
+  const kEmergency = showRealValue ? "realEmergency" : "emergency";
+  const kTarget = showRealValue ? "realTarget" : "target";
+  const kBalance = showRealValue ? "realBalance" : "balance";
+  const kWithdrawal = showRealValue ? "realWithdrawal" : "withdrawal";
+  // --- FIX END ---
+
   // 1. DRAG HANDLERS
   const handleChartMouseDown = (e) => {
     if (e && e.activeLabel) {
-      // Only start dragging if clicked near the current retirement age (±2 years tolerance)
       if (Math.abs(e.activeLabel - state.targetRetirementAge) <= 2) {
         setIsDragging(true);
       }
@@ -29,7 +39,6 @@ export const ResultsDashboard = ({
 
   const handleChartMouseMove = (e) => {
     if (isDragging && e && e.activeLabel) {
-      // Prevent dragging past current age or illogical futures
       const newAge = Math.max(state.currentAge + 1, Math.min(90, e.activeLabel));
       if (newAge !== state.targetRetirementAge) {
         updateState('targetRetirementAge', newAge);
@@ -45,10 +54,9 @@ export const ResultsDashboard = ({
   const DraggableLabel = (props) => {
     const { viewBox } = props;
     const x = viewBox.x;
-    const y = viewBox.y;
     return (
       <g style={{ cursor: 'col-resize' }}>
-         <rect x={x - 15} y={0} width={30} height={300} fill="transparent" /> {/* Invisible hit area */}
+         <rect x={x - 15} y={0} width={30} height={300} fill="transparent" />
          <foreignObject x={x - 12} y={10} width={24} height={24}>
             <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-200 text-slate-600 hover:scale-110 transition-transform cursor-col-resize">
                <GripVertical size={14} />
@@ -81,7 +89,6 @@ export const ResultsDashboard = ({
 
   return (
     <div className="space-y-6" onMouseUp={handleChartMouseUp}> 
-       {/* Note: onMouseUp on container ensures drag stops even if mouse leaves chart area */}
        
        {/* 3. TOP METRIC CARDS */}
        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
@@ -136,7 +143,7 @@ export const ResultsDashboard = ({
             <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.monteCarlo?.successRate > 80 ? "green" : "gold"}>
                 <div className="flex justify-between items-start mb-1">
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                         Success Probability
+                          Success Probability
                     </p>
                     {!results.isMcLoading && (
                         <div className="group relative">
@@ -248,37 +255,57 @@ export const ResultsDashboard = ({
                 <Tooltip 
                     contentStyle={{backgroundColor:'#09090b', borderColor:'#27272a', borderRadius:'8px', fontSize:'11px'}}
                     itemStyle={{padding:0}}
-                    formatter={(val, name) => [formatINR(val), name === 'target' ? 'Required' : name === 'balance' ? 'Total' : name]}
+                    formatter={(val, name) => {
+                        // Map the variable keys back to readable names for the tooltip
+                        const nameMap = {
+                            [kTarget]: 'Required',
+                            [kBalance]: 'Total',
+                            [kEquity]: 'Equity',
+                            [kStable]: 'Stable',
+                            [kCustom]: 'Alternatives',
+                            [kEmergency]: 'Safety Net',
+                            [kWithdrawal]: 'Withdrawal'
+                        };
+                        return [formatINR(val), nameMap[name] || name];
+                    }}
                     labelFormatter={(label) => `Age ${label}`}
                     cursor={{ stroke: '#ffffff20', strokeWidth: 1 }}
                 />
-                <Area type="monotone" dataKey="custom" stackId="1" stroke="#fbbf24" fill="url(#gCustom)" name="Alternatives" strokeWidth={1} isAnimationActive={!isDragging} />
-                <Area type="monotone" dataKey="stable" stackId="1" stroke="#f43f5e" fill="url(#gStable)" name="Stable" strokeWidth={1} isAnimationActive={!isDragging} />
-                <Area type="monotone" dataKey="equity" stackId="1" stroke="#10b981" fill="url(#gEq)" name="Equity" strokeWidth={1} isAnimationActive={!isDragging} />
                 
-                <Area type="monotone" dataKey={showRealValue ? "realEmergency" : "emergency"} stackId="0" stroke="#06b6d4" fill="url(#gEmergency)" name="Safety Net" strokeWidth={1} strokeDasharray="4 4" isAnimationActive={!isDragging} />
+                {/* FIX: Use the Dynamic Keys (kCustom, kStable, kEquity) */}
+                <Area type="monotone" dataKey={kCustom} stackId="1" stroke="#fbbf24" fill="url(#gCustom)" name="Alternatives" strokeWidth={1} isAnimationActive={!isDragging} />
+                <Area type="monotone" dataKey={kStable} stackId="1" stroke="#f43f5e" fill="url(#gStable)" name="Stable" strokeWidth={1} isAnimationActive={!isDragging} />
+                <Area type="monotone" dataKey={kEquity} stackId="1" stroke="#10b981" fill="url(#gEq)" name="Equity" strokeWidth={1} isAnimationActive={!isDragging} />
+                
+                <Area type="monotone" dataKey={kEmergency} stackId="0" stroke="#06b6d4" fill="url(#gEmergency)" name="Safety Net" strokeWidth={1} strokeDasharray="4 4" isAnimationActive={!isDragging} />
                 
                 <Bar dataKey="event" fill="#a855f7" name="Event" barSize={2} radius={[2, 2, 0, 0]} isAnimationActive={!isDragging} />
+                
+                {/* FIX: Use Dynamic Key for Withdrawal */}
                 <Bar 
-                    dataKey={showRealValue ? "realWithdrawal" : "withdrawal"} 
+                    dataKey={kWithdrawal} 
                     fill="#ef4444" 
                     name="Withdrawal" 
                     barSize={2} 
                     radius={[2, 2, 0, 0]} 
                     isAnimationActive={!isDragging}
                 />
+                
+                {/* FIX: Use Dynamic Key for Balance */}
                 <Line 
                     type="monotone" 
-                    dataKey={showRealValue ? "realBalance" : "balance"} 
+                    dataKey={kBalance} 
                     stroke="#ffffff" 
                     strokeWidth={1.5} 
                     dot={false} 
                     name="Total" 
                     isAnimationActive={!isDragging}
                 />
+                
+                {/* FIX: Target Line Logic */}
                 <Line 
                     type="stepAfter" 
-                    dataKey={(dataPoint) => (dataPoint.age > state.targetRetirementAge ? null : (showRealValue ? dataPoint.realTarget : dataPoint.target))} 
+                    dataKey={(dataPoint) => (dataPoint.age > state.targetRetirementAge ? null : dataPoint[kTarget])} 
                     stroke="#ef4444" 
                     strokeWidth={1} 
                     dot={false} 
