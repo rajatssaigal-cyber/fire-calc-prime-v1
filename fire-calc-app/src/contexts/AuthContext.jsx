@@ -20,10 +20,13 @@ export const AuthProvider = ({ children }) => {
      }
   };
 
-  const logout = () => {
+  const logout = async () => {
+      // 1. Clear the sensitive local data immediately
+      localStorage.removeItem("fireCalcScenarios_v1");
+      
+      // 2. Sign out from Firebase
       return signOut(auth);
   };
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
