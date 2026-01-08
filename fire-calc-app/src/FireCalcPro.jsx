@@ -1,5 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, BarChart3, ShieldCheck, AlertTriangle, TrendingUp, FileText } from "lucide-react";
+import { 
+  Calculator, BookOpen, Download, RotateCcw, Eraser, Snowflake, BarChart3, 
+  ShieldCheck, AlertTriangle, TrendingUp, FileText, MoreVertical, X 
+} from "lucide-react";
 
 // --- IMPORTS ---
 import { calculateProjection } from './utils/fireMath';
@@ -44,6 +47,9 @@ export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { user } = useAuth();
   
+  // Mobile Menu State
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  
   // Worker State
   const [mcResults, setMcResults] = useState(null);
   const [isMcLoading, setIsMcLoading] = useState(false);
@@ -57,9 +63,6 @@ export default function FireCalcPro() {
   const [showRealValue, setShowRealValue] = useState(false);
   
   // --- FIX: Sync Logic ---
-  // We listen to isDataLoaded AND user. 
-  // When user logs out, user becomes null, triggering this.
-  // We trust 'persistentData' because usePersistence resets it to defaults on logout.
   useEffect(() => {
       if(isDataLoaded && persistentData) {
           setScenarios(persistentData.scenarios);
@@ -337,28 +340,57 @@ export default function FireCalcPro() {
              </button>
           </div>
 
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center relative">
             {/* AUTH BUTTON */}
             <AuthButton />
 
-            <div className="w-px h-8 bg-white/10 mx-1"></div>
-            
-            {/* FIX 2: Restored Missing Buttons */}
-            <button onClick={handleReset} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Reset Scenario">
-                <RotateCcw size={18}/>
-            </button>
-            <button onClick={handleClear} className="p-2 text-slate-400 hover:text-rose-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Clear All Data">
-                <Eraser size={18}/>
+            {/* --- FIX: MOBILE MENU TOGGLE --- */}
+            {/* 1. Desktop: Show Buttons Normally */}
+            <div className="hidden md:flex items-center gap-2">
+                <div className="w-px h-8 bg-white/10 mx-1"></div>
+                <button onClick={handleReset} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Reset Scenario">
+                    <RotateCcw size={18}/>
+                </button>
+                <button onClick={handleClear} className="p-2 text-slate-400 hover:text-rose-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Clear All Data">
+                    <Eraser size={18}/>
+                </button>
+                <div className="w-px h-8 bg-white/10 mx-1"></div>
+                <button onClick={handleDownload} className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Export CSV">
+                    <Download size={18}/>
+                </button>
+                <button onClick={() => generatePDFReport(state, results)} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Download Report">
+                    <FileText size={18}/>
+                </button>
+            </div>
+
+            {/* 2. Mobile: Show Menu Toggle */}
+            <button 
+                className="md:hidden p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 ml-1"
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+            >
+                {showMobileMenu ? <X size={20} /> : <MoreVertical size={20} />}
             </button>
 
-            <div className="w-px h-8 bg-white/10 mx-1"></div>
+            {/* 3. Mobile Dropdown */}
+            {showMobileMenu && (
+                <div className="absolute top-14 right-0 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 flex flex-col gap-1 md:hidden z-[60] animate-in slide-in-from-top-2">
+                    <button onClick={() => { handleReset(); setShowMobileMenu(false); }} className="flex items-center gap-3 px-3 py-3 text-sm text-slate-300 hover:bg-white/5 rounded-lg text-left">
+                        <RotateCcw size={16} className="text-emerald-400" /> Reset Plan
+                    </button>
+                    <button onClick={() => { handleClear(); setShowMobileMenu(false); }} className="flex items-center gap-3 px-3 py-3 text-sm text-slate-300 hover:bg-white/5 rounded-lg text-left">
+                        <Eraser size={16} className="text-rose-400" /> Clear Data
+                    </button>
+                    <div className="h-px bg-white/10 my-1"></div>
+                    <button onClick={() => { handleDownload(); setShowMobileMenu(false); }} className="flex items-center gap-3 px-3 py-3 text-sm text-slate-300 hover:bg-white/5 rounded-lg text-left">
+                        <Download size={16} className="text-blue-400" /> Export CSV
+                    </button>
+                    <button onClick={() => { generatePDFReport(state, results); setShowMobileMenu(false); }} className="flex items-center gap-3 px-3 py-3 text-sm text-slate-300 hover:bg-white/5 rounded-lg text-left">
+                        <FileText size={16} className="text-amber-400" /> Download PDF
+                    </button>
+                </div>
+            )}
+            {/* --- FIX END --- */}
 
-            <button onClick={handleDownload} className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Export CSV">
-                <Download size={18}/>
-            </button>
-            <button onClick={() => generatePDFReport(state, results)} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Download Report">
-                <FileText size={18}/>
-            </button>
           </div>
         </div>
       </nav>
