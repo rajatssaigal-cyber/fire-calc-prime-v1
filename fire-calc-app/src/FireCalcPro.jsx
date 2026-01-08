@@ -528,6 +528,7 @@ export default function FireCalcPro() {
                 <ResultsDashboard 
                     results={results}
                     state={state}
+                  updateState={updateState}
                     hasData={hasData}
                     netCashflow={netCashflow}
                     monthlyIncome={monthlyIncome}
