@@ -56,16 +56,17 @@ export default function FireCalcPro() {
   const [activeScenarioId, setActiveScenarioId] = useState("default");
   const [showRealValue, setShowRealValue] = useState(false);
   
-  // --- FIX 1: Stop the Infinite Loop ---
-  // Only sync data when isDataLoaded turns TRUE (Initial Load).
-  // We removed 'persistentData' from the dependency array to prevent the loop.
+  // --- FIX: Sync Logic ---
+  // We listen to isDataLoaded AND user. 
+  // When user logs out, user becomes null, triggering this.
+  // We trust 'persistentData' because usePersistence resets it to defaults on logout.
   useEffect(() => {
       if(isDataLoaded && persistentData) {
           setScenarios(persistentData.scenarios);
           setActiveScenarioId(persistentData.activeId);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDataLoaded]); 
+  }, [isDataLoaded, user]); 
 
   // Derived State
   const state = scenarios[activeScenarioId] || DEFAULT_STATE; 
