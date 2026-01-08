@@ -8,6 +8,7 @@ import { SEOManager } from './components/SEOManager';
 import { Snowfall } from './components/ui/Snowfall';
 import { MethodologyTab } from './components/docs/MethodologyTab';
 import { generatePDFReport } from './utils/pdfGenerator';
+import { trackCalculation } from './utils/analytics'; // <--- NEW
 
 // --- FEATURE SECTIONS ---
 import { InputSection } from './components/features/InputSection';
@@ -15,6 +16,8 @@ import { ResultsDashboard } from './components/features/ResultsDashboard';
 import { ScenarioTabs } from './components/features/ScenarioTabs';
 import { CompareTab } from './components/features/CompareTab';
 import { UserGuideModal } from './components/features/UserGuideModal';
+import { AuthButton } from './components/features/AuthButton'; // <--- NEW
+import { usePersistence } from './hooks/usePersistence'; // <--- NEW
 
 const DEFAULT_STATE = {
   scenarioName: "Base Plan",
@@ -38,57 +41,42 @@ const DEFAULT_STATE = {
 
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [isLoaded, setIsLoaded] = useState(false);
   
   // Worker State
   const [mcResults, setMcResults] = useState(null);
   const [isMcLoading, setIsMcLoading] = useState(false);
   
-  const fileInputRef = useRef(null);
-   
-  // --- 1. STATE DEFINITIONS ---
+  // --- 1. PERSISTENCE HOOK (Replaces LocalStorage logic) ---
+  const { data: persistentData, saveData, isDataLoaded } = usePersistence(DEFAULT_STATE);
+  
+  // --- 2. LOCAL STATE ---
   const [scenarios, setScenarios] = useState({ "default": DEFAULT_STATE });
   const [activeScenarioId, setActiveScenarioId] = useState("default");
   const [showRealValue, setShowRealValue] = useState(false);
-   
-  // --- 2. DERIVED STATE ---
+  
+  // Sync Hook Data -> Local State
+  useEffect(() => {
+      if(isDataLoaded && persistentData) {
+          setScenarios(persistentData.scenarios);
+          setActiveScenarioId(persistentData.activeId);
+      }
+  }, [isDataLoaded, persistentData]);
+
+  // Derived State
   const state = scenarios[activeScenarioId] || DEFAULT_STATE; 
   const [debouncedState, setDebouncedState] = useState(DEFAULT_STATE);
 
-  // --- 3. PERSISTENCE EFFECTS ---
+  // Persistence Saver (Auto-Save)
   useEffect(() => {
-    try {
-        const saved = localStorage.getItem("fireCalcScenarios_v1"); 
-        if (saved) { 
-            const parsed = JSON.parse(saved);
-            setScenarios(parsed.scenarios);
-            setActiveScenarioId(parsed.activeId);
-        } else {
-            const oldData = localStorage.getItem("fireCalcData_v15.3");
-            if (oldData) {
-                setScenarios({ "default": { ...JSON.parse(oldData), scenarioName: "My First Plan" } });
-            }
-        }
-    } catch (e) {
-        console.warn("Storage access denied", e);
-    }
-    setIsLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded) {
-        try {
-            const dataToSave = { scenarios, activeId: activeScenarioId };
-            localStorage.setItem("fireCalcScenarios_v1", JSON.stringify(dataToSave));
-        } catch (e) {}
+    if (isDataLoaded) {
+       saveData({ scenarios, activeId: activeScenarioId });
     }
     const timer = setTimeout(() => setDebouncedState(state), 200);
     return () => clearTimeout(timer);
-  }, [scenarios, activeScenarioId, isLoaded, state]);
+  }, [scenarios, activeScenarioId, isDataLoaded, state]); // Removed saveData from dep array to avoid loops
 
   // --- WORKER EFFECT (Monte Carlo) ---
   useEffect(() => {
-    // Only run if we have data and valid retirement age
     const hasData = (debouncedState.annualIncome > 0 || debouncedState.currentAnnualExpenses > 0 || (debouncedState.equityAssets.mutualFunds + debouncedState.stableAssets.epf) > 0);
     
     if (!hasData || debouncedState.targetRetirementAge <= debouncedState.currentAge) {
@@ -97,8 +85,6 @@ export default function FireCalcPro() {
     }
 
     setIsMcLoading(true);
-
-    // Initialize Worker
     const worker = new Worker(new URL('./utils/mcWorker.js', import.meta.url), { type: 'module' });
 
     worker.onmessage = (e) => {
@@ -109,9 +95,7 @@ export default function FireCalcPro() {
 
     worker.postMessage({ state: debouncedState, iterations: 10000 });
 
-    return () => {
-        worker.terminate();
-    };
+    return () => { worker.terminate(); };
   }, [debouncedState]);
 
   // --- 4. SCENARIO ACTIONS ---
@@ -142,6 +126,11 @@ export default function FireCalcPro() {
   };
 
   // --- 5. DATA UPDATERS ---
+  // Helper to trigger save immediately if needed
+  const updateScenariosHelper = (newScenarios) => {
+      setScenarios(newScenarios);
+  };
+
   const updateState = useCallback((key, value) => {
       setScenarios(prev => ({
           ...prev,
@@ -192,26 +181,14 @@ export default function FireCalcPro() {
       });
   };
 
-  // LIABILITY HANDLERS (Safe Version)
   const addLiability = () => {
     setScenarios(prev => {
       const currentScenario = prev[activeScenarioId];
-      const existingLiabilities = currentScenario.liabilities || [];
-      
       return {
         ...prev,
         [activeScenarioId]: {
           ...currentScenario,
-          liabilities: [
-            ...existingLiabilities, 
-            { 
-              id: Date.now(), 
-              name: 'Home Loan', 
-              monthlyEMI: 30000, 
-              outstandingAmount: 2500000, 
-              endAge: currentScenario.currentAge + 15 
-            }
-          ]
+          liabilities: [...(currentScenario.liabilities||[]), { id: Date.now(), name: 'Home Loan', monthlyEMI: 30000, outstandingAmount: 2500000, endAge: currentScenario.currentAge + 15 }]
         }
       };
     });
@@ -220,15 +197,11 @@ export default function FireCalcPro() {
   const updateLiability = (id, field, value) => {
     setScenarios(prev => {
       const currentScenario = prev[activeScenarioId];
-      const existingLiabilities = currentScenario.liabilities || [];
-
       return {
         ...prev,
         [activeScenarioId]: {
           ...currentScenario,
-          liabilities: existingLiabilities.map(l => 
-            l.id === id ? { ...l, [field]: field === 'name' ? value : parseFloat(value) || 0 } : l
-          )
+          liabilities: (currentScenario.liabilities||[]).map(l => l.id === id ? { ...l, [field]: field === 'name' ? value : parseFloat(value) || 0 } : l)
         }
       };
     });
@@ -237,13 +210,11 @@ export default function FireCalcPro() {
   const removeLiability = (id) => {
     setScenarios(prev => {
       const currentScenario = prev[activeScenarioId];
-      const existingLiabilities = currentScenario.liabilities || [];
-
       return {
         ...prev,
         [activeScenarioId]: {
           ...currentScenario,
-          liabilities: existingLiabilities.filter(l => l.id !== id)
+          liabilities: (currentScenario.liabilities||[]).filter(l => l.id !== id)
         }
       };
     });
@@ -265,10 +236,7 @@ export default function FireCalcPro() {
       if(window.confirm("Reset current scenario to default?")) {
           setScenarios(prev => ({
               ...prev,
-              [activeScenarioId]: { 
-                  ...DEFAULT_STATE, 
-                  scenarioName: prev[activeScenarioId].scenarioName 
-              }
+              [activeScenarioId]: { ...DEFAULT_STATE, scenarioName: prev[activeScenarioId].scenarioName }
           }));
       }
   };
@@ -278,16 +246,12 @@ export default function FireCalcPro() {
         setScenarios(prev => ({
             ...prev,
             [activeScenarioId]: {
-                ...DEFAULT_STATE, // Reset structure
-                scenarioName: prev[activeScenarioId].scenarioName, // Keep the name
-                // Explicitly zero out all financial data
-                annualIncome: 0,
-                currentAnnualExpenses: 0,
+                ...DEFAULT_STATE,
+                scenarioName: prev[activeScenarioId].scenarioName,
+                annualIncome: 0, currentAnnualExpenses: 0,
                 equityAssets: { mutualFunds: 0, stocks: 0 },
                 stableAssets: { epf: 0, ppf: 0, nps: 0, gold: 0, cash: 0 },
-                customAssets: [],
-                liabilities: [],
-                emergencyFund: 0,
+                customAssets: [], liabilities: [], emergencyFund: 0,
                 monthlySIP: { equity: 0, stable: 0 }
             }
         }));
@@ -296,45 +260,35 @@ export default function FireCalcPro() {
 
   // --- 6. ENGINE CALL ---
   const results = useMemo(() => {
-    if (!isLoaded || !state) return null;
-
-    // 1. Run Standard Projection (Sync)
+    if (!isDataLoaded || !state) return null;
     const projectionResult = calculateProjection(debouncedState);
+    
+    // ANALYTICS TRACKING (Debounced)
+    trackCalculation(debouncedState, projectionResult);
 
-    // 2. Attach the Async Worker Results (from State)
     return {
         ...projectionResult,
-        monteCarlo: mcResults, // This comes from the Worker useEffect
+        monteCarlo: mcResults,
         isMcLoading: isMcLoading
     };
-  }, [debouncedState, isLoaded, state, mcResults, isMcLoading]);
+  }, [debouncedState, isDataLoaded, state, mcResults, isMcLoading]);
 
-  // ==========================================
-  // 7. DERIVED METRICS
-  // ==========================================
-  
-  // Assets
+  // Derived Metrics
   const totalEquity = state ? Object.values(state.equityAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalStable = state ? Object.values(state.stableAssets).reduce((a, b) => a + (b || 0), 0) : 0;
   const totalCustom = state ? state.customAssets.reduce((a, b) => a + (b.value || 0), 0) : 0;
-  
-  // Liabilities (Debt & EMI)
-  const liabilities = state?.liabilities || [];
-  const totalDebt = liabilities.reduce((a, b) => a + (parseFloat(b.outstandingAmount) || 0), 0);
-  const totalEMI = liabilities.reduce((a, b) => a + (parseFloat(b.monthlyEMI) || 0), 0);
-
-  // Net Worth (Assets - Debt)
+  const liabilitiesList = state?.liabilities || [];
+  const totalDebt = liabilitiesList.reduce((a, b) => a + (parseFloat(b.outstandingAmount) || 0), 0);
+  const totalEMI = liabilitiesList.reduce((a, b) => a + (parseFloat(b.monthlyEMI) || 0), 0);
   const totalNetWorth = totalEquity + totalStable + totalCustom + (state?.emergencyFund || 0) - totalDebt;
 
-  // Cashflow
   const monthlyIncome = state ? state.annualIncome / 12 : 0;
   const monthlyBaseExpenses = state ? state.currentAnnualExpenses / 12 : 0;
-  const totalMonthlySpend = monthlyBaseExpenses + totalEMI; // Include EMI in spend
+  const totalMonthlySpend = monthlyBaseExpenses + totalEMI;
   const totalSIP = state ? state.monthlySIP.equity + state.monthlySIP.stable : 0;
   const netCashflow = monthlyIncome - totalMonthlySpend - totalSIP;
-
-  // Future Unlock
-  const maxLoanAge = liabilities.reduce((max, l) => Math.max(max, l.endAge || 0), 0);
+  
+  const maxLoanAge = liabilitiesList.reduce((max, l) => Math.max(max, l.endAge || 0), 0);
   const emergencyCoverageMonths = totalMonthlySpend > 0 ? (state.emergencyFund / totalMonthlySpend).toFixed(1) : "N/A";
    
   const hasData = useMemo(() => {
@@ -351,7 +305,7 @@ export default function FireCalcPro() {
     a.href = url; a.download = `FirePlan_${state.scenarioName.replace(/\s+/g, '_')}.csv`; a.click();
   };
 
-  if (!isLoaded) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-emerald-400">Loading Holiday Magic...</div>;
+  if (!isDataLoaded) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-emerald-400 font-mono animate-pulse">Loading Your Financial Data...</div>;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500/30 overflow-x-hidden relative">
@@ -382,25 +336,18 @@ export default function FireCalcPro() {
              </button>
           </div>
 
-          <div className="flex gap-2">
-            <button 
-                onClick={handleDownload} 
-                className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
-                title="Export Data (CSV)"
-            >
+          <div className="flex gap-2 items-center">
+            {/* AUTH BUTTON HERE */}
+            <AuthButton />
+
+            <div className="w-px h-8 bg-white/10 mx-1"></div>
+
+            <button onClick={handleDownload} className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Export CSV">
                 <Download size={18}/>
             </button>
-
-            <button 
-                onClick={() => generatePDFReport(state, results)} 
-                className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
-                title="Download Report (PDF)"
-            >
+            <button onClick={() => generatePDFReport(state, results)} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Download Report">
                 <FileText size={18}/>
             </button>
-
-            <button onClick={handleReset} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><RotateCcw size={18}/></button>
-            <button onClick={handleClear} className="p-2 text-slate-400 hover:text-rose-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"><Eraser size={18}/></button>
           </div>
         </div>
       </nav>
@@ -414,7 +361,6 @@ export default function FireCalcPro() {
           </div>
       </div>
 
-      {/* MAIN CONTENT SWITCHER */}
       {activeTab === 'docs' ? (
           <MethodologyTab />
       ) : activeTab === 'compare' ? (
@@ -423,11 +369,7 @@ export default function FireCalcPro() {
           </main>
       ) : (
       <main className="max-w-7xl mx-auto p-4 md:p-8 pb-40 lg:pb-8 animate-in fade-in duration-500 relative z-10">
-       
-       {/* --- MASTER CASHFLOW BANNER --- */}
         <div className={`mb-8 p-5 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-6 shadow-lg transition-all ${netCashflow >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
-            
-            {/* LEFT: STATUS & FUTURE UNLOCK */}
             <div className="flex items-start gap-4">
                 <div className={`p-3 rounded-full mt-1 ${netCashflow >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
                     {netCashflow >= 0 ? <ShieldCheck size={28} /> : <AlertTriangle size={28} />}
@@ -439,8 +381,6 @@ export default function FireCalcPro() {
                     <p className="text-sm text-slate-300 mt-1 leading-relaxed">
                         You have a {netCashflow >= 0 ? 'surplus' : 'deficit'} of <strong className={netCashflow >= 0 ? "text-white" : "text-rose-400"}>{formatCompact(Math.abs(netCashflow))}/mo</strong> available.
                     </p>
-                    
-                    {/* FUTURE UNLOCK PILL */}
                     {totalEMI > 0 && maxLoanAge > state.currentAge && (
                         <div className="mt-3 flex items-center gap-2 text-xs bg-slate-900/60 py-1.5 px-3 rounded-lg border border-white/5 w-fit">
                             <TrendingUp size={14} className="text-emerald-400" />
@@ -451,21 +391,16 @@ export default function FireCalcPro() {
                     )}
                 </div>
             </div>
-
-            {/* RIGHT: DETAILED BREAKDOWN (Now includes EMI) */}
             <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex flex-wrap justify-center items-center gap-4 text-xs">
                 <div className="text-center">
                     <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Income</p>
                     <p className="font-mono font-bold text-emerald-400 text-sm">{formatCompact(monthlyIncome)}</p>
                 </div>
                 <span className="text-slate-600 font-bold">-</span>
-                
-                {/* SPLIT SPEND INTO BASE + EMI */}
                 <div className="text-center">
                     <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Base Exp</p>
                     <p className="font-mono font-bold text-slate-200 text-sm">{formatCompact(monthlyBaseExpenses)}</p>
                 </div>
-                
                 {totalEMI > 0 && (
                     <>
                     <span className="text-slate-600 font-bold">-</span>
@@ -475,7 +410,6 @@ export default function FireCalcPro() {
                     </div>
                     </>
                 )}
-                
                 <span className="text-slate-600 font-bold">-</span>
                 <div className="text-center">
                     <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">SIP</p>
@@ -490,7 +424,6 @@ export default function FireCalcPro() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* SCENARIO TABS */}
             <div className="col-span-1 lg:col-span-12">
                 <ScenarioTabs 
                     scenarios={scenarios} 
@@ -501,8 +434,6 @@ export default function FireCalcPro() {
                     onRename={handleRenameScenario}
                 />
             </div>
-
-            {/* LEFT COLUMN: INPUTS */}
             <div className="lg:col-span-4">
                 <InputSection 
                     state={state}
@@ -522,13 +453,11 @@ export default function FireCalcPro() {
                     emergencyCoverageMonths={emergencyCoverageMonths}
                 />
             </div>
-
-            {/* RIGHT COLUMN: DASHBOARD */}
             <div className="lg:col-span-8">
                 <ResultsDashboard 
                     results={results}
                     state={state}
-                  updateState={updateState}
+                    updateState={updateState}
                     hasData={hasData}
                     netCashflow={netCashflow}
                     monthlyIncome={monthlyIncome}
@@ -546,7 +475,6 @@ export default function FireCalcPro() {
       </main>
       )}
 
-      {/* SMART STICKY FOOTER (Visible on Dashboard Only) */}
       {activeTab === 'dashboard' && (
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-xl border-t border-white/10 p-4 z-50 pb-safe">
           <div className="flex flex-col gap-3">
