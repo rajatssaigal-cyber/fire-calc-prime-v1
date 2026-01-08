@@ -1,6 +1,8 @@
+// fire-calc-app/src/components/features/DetailedTable.jsx
+
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Table } from "lucide-react";
-import { formatCompact, formatINR } from '../../utils/formatters';
+import { formatCompact } from '../../utils/formatters';
 import { Card } from '../ui/Card';
 
 export const DetailedTable = ({ projection, targetRetirementAge }) => {
@@ -29,7 +31,10 @@ export const DetailedTable = ({ projection, targetRetirementAge }) => {
                         <th className="p-3">Age</th>
                         <th className="p-3 text-right">Corpus</th>
                         <th className="p-3 text-right text-emerald-500">Equity</th>
-                        <th className="p-3 text-right text-rose-500">Debt</th>
+                        
+                        {/* 1. RENAMED: Debt -> Stable */}
+                        <th className="p-3 text-right text-rose-500">Stable</th>
+                        
                         <th className="p-3 text-right text-amber-500">Alt</th>
                         <th className="p-3 text-right text-red-400">Withdrawal</th>
                     </tr>
@@ -37,6 +42,11 @@ export const DetailedTable = ({ projection, targetRetirementAge }) => {
                 <tbody className="divide-y divide-slate-800/50 text-slate-300">
                     {projection.map((row) => {
                         const isRetired = row.age > targetRetirementAge;
+                        
+                        // 2. FIX: Combine Retirement Withdrawal + One-Time Events
+                        // This ensures pre-retirement expenses (Life Events) are visible
+                        const totalOutflow = (row.withdrawal || 0) + (row.event || 0);
+
                         return (
                             <tr key={row.age} className={`hover:bg-white/5 transition-colors ${isRetired ? 'bg-slate-900/30' : ''}`}>
                                 <td className="p-3 font-bold border-r border-slate-800/50 sticky left-0 bg-slate-900/90">
@@ -48,7 +58,11 @@ export const DetailedTable = ({ projection, targetRetirementAge }) => {
                                 <td className="p-3 text-right">{formatCompact(row.equity)}</td>
                                 <td className="p-3 text-right">{formatCompact(row.stable)}</td>
                                 <td className="p-3 text-right">{formatCompact(row.custom)}</td>
-                                <td className="p-3 text-right text-red-400">{row.withdrawal > 0 ? formatCompact(row.withdrawal) : '-'}</td>
+                                
+                                {/* 3. DISPLAY FIX: Show the total outflow, not just retirement withdrawal */}
+                                <td className="p-3 text-right text-red-400">
+                                    {totalOutflow > 0 ? formatCompact(totalOutflow) : '-'}
+                                </td>
                             </tr>
                         );
                     })}
