@@ -271,15 +271,28 @@ export const calculateProjection = (state) => {
         if (m % 12 === 0 || m === 1) {
             data.push({
                 age: Math.floor(currentAge),
+                
+                // TOTALS
                 balance: Math.round(total), 
                 realBalance: Math.round(total / deflator),
+                
+                // --- FIX STARTS HERE: Add "Real" versions of individual components ---
                 equity: Math.round(curEquity),
+                realEquity: Math.round(curEquity / deflator), // <--- NEW
+                
                 stable: Math.round(curStable),
+                realStable: Math.round(curStable / deflator), // <--- NEW
+                
                 custom: Math.round(totalCustomVal),
+                realCustom: Math.round(totalCustomVal / deflator), // <--- NEW
+                // -------------------------------------------------------------------
+
                 emergency: Math.round(curEmergency), 
                 realEmergency: Math.round(curEmergency / deflator),
+                
                 target: isRetired ? null : Math.round(targetCorpus),
                 realTarget: isRetired ? null : Math.round(targetCorpus / deflator),
+                
                 event: Math.round(eventCost + (monthlyRecurringOutflow * 12)), 
                 withdrawal: Math.round(yearlyWithdrawal),
                 realWithdrawal: Math.round(yearlyWithdrawal / deflator)
