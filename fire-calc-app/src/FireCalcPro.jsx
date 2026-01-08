@@ -18,6 +18,7 @@ import { CompareTab } from './components/features/CompareTab';
 import { UserGuideModal } from './components/features/UserGuideModal';
 import { AuthButton } from './components/features/AuthButton';
 import { usePersistence } from './hooks/usePersistence';
+import { useAuth } from './contexts/AuthContext';
 
 const DEFAULT_STATE = {
   scenarioName: "Base Plan",
@@ -41,6 +42,7 @@ const DEFAULT_STATE = {
 
 export default function FireCalcPro() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const { user } = useAuth();
   
   // Worker State
   const [mcResults, setMcResults] = useState(null);
@@ -306,8 +308,8 @@ export default function FireCalcPro() {
   if (!isDataLoaded) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-emerald-400 font-mono animate-pulse">Loading Your Financial Data...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500/30 overflow-x-hidden relative">
-      <SEOManager /> 
+<div key={user ? user.uid : 'guest'} className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500/30 overflow-x-hidden relative">
+  <SEOManager /> 
       <Snowfall /> 
       
       {/* NAVBAR */}
