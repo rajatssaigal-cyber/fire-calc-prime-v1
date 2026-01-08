@@ -327,7 +327,11 @@ export const ResultsDashboard = ({
        </Card>
 
        <LifeEventsList state={state} addEvent={addEvent} updateEvent={updateEvent} toggleEventType={toggleEventType} removeEvent={removeEvent} />
-       <DetailedTable projection={results?.projection} targetRetirementAge={state.targetRetirementAge} />
+       <DetailedTable 
+    projection={results?.projection} 
+    targetRetirementAge={state.targetRetirementAge} 
+    showRealValue={showRealValue} // <--- Pass the toggle state
+/>
     </div>
   );
 };
