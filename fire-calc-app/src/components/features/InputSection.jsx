@@ -1,3 +1,5 @@
+// fire-calc-app/src/components/features/InputSection.jsx
+
 import React from 'react';
 import { 
     Gift, Banknote, CreditCard, TrendingUp, Coins, PiggyBank, AlertCircle, 
@@ -16,9 +18,9 @@ export const InputSection = ({
     addCustomAsset, 
     updateCustomAsset, 
     removeCustomAsset, 
-    addLiability,      
-    updateLiability,   
-    removeLiability,   
+    addLiability,       
+    updateLiability,    
+    removeLiability,    
     results, 
     totalNetWorth, 
     totalEquity, 
@@ -44,6 +46,16 @@ export const InputSection = ({
   return (
     <div className="space-y-6">
            
+           {/* --- 0. PRO TIP NOTE (NEW) --- */}
+           <div className="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-lg flex gap-3 items-start">
+                <div className="mt-0.5 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>
+                </div>
+                <p className="text-xs text-indigo-200/80 leading-relaxed">
+                    <strong>Pro Tip:</strong> Enter all values in <strong>Today's Prices</strong> (e.g., your current grocery bill). We automatically adjust for inflation every year.
+                </p>
+           </div>
+
            {/* 1. CASHFLOW ENGINE */}
            <CollapsibleSection title="Cashflow Engine" icon={Gift} color="text-rose-500" defaultOpen={true}>
               <div className="space-y-4">
@@ -287,7 +299,7 @@ export const InputSection = ({
                      </div>
                   )}
 
-                  {/* --- NEW FLEXIBILITY TOGGLE --- */}
+                  {/* FLEXIBILITY TOGGLE */}
                   <div className="flex justify-between items-start pt-2 border-t border-white/5">
                      <div className="flex items-start gap-3">
                         <div className="bg-teal-500/20 p-2 rounded-lg text-teal-400 mt-1">
