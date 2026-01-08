@@ -8,12 +8,13 @@ export const usePersistence = (defaultState) => {
     const [data, setData] = useState({ scenarios: { "default": defaultState }, activeId: "default" });
     const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+    // 1. LOAD DATA (Switch strategy based on User)
     useEffect(() => {
         const load = async () => {
             setIsDataLoaded(false);
             
             if (user) {
-                // CLOUD STRATEGY
+                // ... (Cloud Logic remains the same) ...
                 try {
                     const docRef = doc(db, "users", user.uid);
                     const docSnap = await getDoc(docRef);
@@ -21,7 +22,7 @@ export const usePersistence = (defaultState) => {
                     if (docSnap.exists()) {
                         setData(docSnap.data());
                     } else {
-                        // MERGE STRATEGY: First login uploads local data
+                        // Merge logic...
                         const local = localStorage.getItem("fireCalcScenarios_v1");
                         if (local) {
                             const parsed = JSON.parse(local);
@@ -39,12 +40,15 @@ export const usePersistence = (defaultState) => {
                 const saved = localStorage.getItem("fireCalcScenarios_v1");
                 if (saved) {
                     setData(JSON.parse(saved));
+                } else {
+                 
+                    setData({ scenarios: { "default": defaultState }, activeId: "default" });
                 }
             }
             setIsDataLoaded(true);
         };
         load();
-    }, [user]);
+    }, [user]); // Re-run when user logs in/out
 
     const saveData = async (newData) => {
         setData(newData); // Optimistic Update
