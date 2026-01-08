@@ -8,7 +8,7 @@ import { SEOManager } from './components/SEOManager';
 import { Snowfall } from './components/ui/Snowfall';
 import { MethodologyTab } from './components/docs/MethodologyTab';
 import { generatePDFReport } from './utils/pdfGenerator';
-import { trackCalculation } from './utils/analytics'; // <--- NEW
+import { trackCalculation } from './utils/analytics';
 
 // --- FEATURE SECTIONS ---
 import { InputSection } from './components/features/InputSection';
@@ -16,8 +16,8 @@ import { ResultsDashboard } from './components/features/ResultsDashboard';
 import { ScenarioTabs } from './components/features/ScenarioTabs';
 import { CompareTab } from './components/features/CompareTab';
 import { UserGuideModal } from './components/features/UserGuideModal';
-import { AuthButton } from './components/features/AuthButton'; // <--- NEW
-import { usePersistence } from './hooks/usePersistence'; // <--- NEW
+import { AuthButton } from './components/features/AuthButton';
+import { usePersistence } from './hooks/usePersistence';
 
 const DEFAULT_STATE = {
   scenarioName: "Base Plan",
@@ -46,7 +46,7 @@ export default function FireCalcPro() {
   const [mcResults, setMcResults] = useState(null);
   const [isMcLoading, setIsMcLoading] = useState(false);
   
-  // --- 1. PERSISTENCE HOOK (Replaces LocalStorage logic) ---
+  // --- 1. PERSISTENCE HOOK ---
   const { data: persistentData, saveData, isDataLoaded } = usePersistence(DEFAULT_STATE);
   
   // --- 2. LOCAL STATE ---
@@ -54,13 +54,16 @@ export default function FireCalcPro() {
   const [activeScenarioId, setActiveScenarioId] = useState("default");
   const [showRealValue, setShowRealValue] = useState(false);
   
-  // Sync Hook Data -> Local State
+  // --- FIX 1: Stop the Infinite Loop ---
+  // Only sync data when isDataLoaded turns TRUE (Initial Load).
+  // We removed 'persistentData' from the dependency array to prevent the loop.
   useEffect(() => {
       if(isDataLoaded && persistentData) {
           setScenarios(persistentData.scenarios);
           setActiveScenarioId(persistentData.activeId);
       }
-  }, [isDataLoaded, persistentData]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDataLoaded]); 
 
   // Derived State
   const state = scenarios[activeScenarioId] || DEFAULT_STATE; 
@@ -73,7 +76,7 @@ export default function FireCalcPro() {
     }
     const timer = setTimeout(() => setDebouncedState(state), 200);
     return () => clearTimeout(timer);
-  }, [scenarios, activeScenarioId, isDataLoaded, state]); // Removed saveData from dep array to avoid loops
+  }, [scenarios, activeScenarioId, isDataLoaded, state]); 
 
   // --- WORKER EFFECT (Monte Carlo) ---
   useEffect(() => {
@@ -126,11 +129,6 @@ export default function FireCalcPro() {
   };
 
   // --- 5. DATA UPDATERS ---
-  // Helper to trigger save immediately if needed
-  const updateScenariosHelper = (newScenarios) => {
-      setScenarios(newScenarios);
-  };
-
   const updateState = useCallback((key, value) => {
       setScenarios(prev => ({
           ...prev,
@@ -337,8 +335,18 @@ export default function FireCalcPro() {
           </div>
 
           <div className="flex gap-2 items-center">
-            {/* AUTH BUTTON HERE */}
+            {/* AUTH BUTTON */}
             <AuthButton />
+
+            <div className="w-px h-8 bg-white/10 mx-1"></div>
+            
+            {/* FIX 2: Restored Missing Buttons */}
+            <button onClick={handleReset} className="p-2 text-slate-400 hover:text-emerald-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Reset Scenario">
+                <RotateCcw size={18}/>
+            </button>
+            <button onClick={handleClear} className="p-2 text-slate-400 hover:text-rose-400 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors" title="Clear All Data">
+                <Eraser size={18}/>
+            </button>
 
             <div className="w-px h-8 bg-white/10 mx-1"></div>
 
