@@ -96,10 +96,25 @@ export const ResultsDashboard = ({
          {/* A. GAP CARD */}
          <Card className="p-5 relative overflow-hidden bg-gradient-to-br from-slate-900 to-black border-slate-800" glow={results?.gap > 0 ? "red" : "green"}>
              <div className="flex justify-between items-start mb-2">
-                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gap at Age {state.targetRetirementAge}</p>
-                 <button onClick={() => setShowRealValue(!showRealValue)} className="opacity-50 hover:opacity-100 transition-opacity">
-                    {showRealValue ? <Eye size={14} className="text-emerald-400"/> : <EyeOff size={14} className="text-slate-500"/>}
+                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Gap at Age {state.targetRetirementAge}</p>
+                 
+                 {/* --- UX IMPROVEMENT: LABELED TOGGLE BUTTON --- */}
+                 <button 
+                    onClick={() => setShowRealValue(!showRealValue)} 
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all ${
+                        showRealValue 
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                            : "bg-transparent border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                    }`}
+                    title={showRealValue ? "Showing purchasing power (Inflation Adjusted)" : "Showing actual future currency amount"}
+                 >
+                    <span className="text-[9px] font-bold uppercase tracking-wider">
+                        {showRealValue ? "Real Value" : "Nominal"}
+                    </span>
+                    {showRealValue ? <Eye size={12} /> : <EyeOff size={12} />}
                  </button>
+                 {/* ------------------------------------------- */}
+
              </div>
              
              {results && results.gap > 0 ? (
