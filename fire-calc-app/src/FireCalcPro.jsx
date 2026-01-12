@@ -27,7 +27,9 @@ const DEFAULT_STATE = {
   scenarioName: "Base Plan",
   currentAge: 30, targetRetirementAge: 50, lifeExpectancy: 85,
   equityAssets: { mutualFunds: 500000, stocks: 200000 },
-  stableAssets: { epf: 300000, ppf: 100000, nps: 0, gold: 50000, cash: 100000 }, 
+  
+  
+  stableAssets: { epf: 300000, gold: 500000 }, 
   customAssets: [], 
   liabilities: [],
   emergencyFund: 500000,
